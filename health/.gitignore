@@ -1,0 +1,12 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.python-version
+.pytest_cache
+__init__.py

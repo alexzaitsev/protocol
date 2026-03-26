@@ -1,0 +1,11 @@
+# Supabase
+.branches
+.temp
+
+# Seed data
+seed.sql
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
