@@ -2,13 +2,13 @@
 
 An MCP server for tracking family health data — supplements, blood tests, health profiles, and knowledge. Backed by Supabase PostgreSQL.
 
-## Table of Contents
+# Table of Contents
 
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
   - [Supabase](#supabase)
   - [Google Cloud](#google-cloud)
-- [Fork and configure](#fork-and-configure)
+  - [Fly.io](#flyio)
 - [Deployment](#deployment)
 - [Development](#development)
 
@@ -22,6 +22,7 @@ Sign up for these services:
 
 - [Supabase](https://supabase.com/) — PostgreSQL database
 - [Google Cloud](https://console.cloud.google.com/) — OAuth 2.0 (Google sign-in)
+- [Fly.io](https://fly.io/) — MCP server hosting
 
 <details>
 <summary><h2>Supabase</h2></summary>
@@ -48,15 +49,16 @@ postgresql://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres?sslmo
 - **`<pooler-host>`** — copy the host from the transaction pooler connection string
 - **`<password>`** — your database password, URL-encoded (special characters like `@`, `!`, `#`, `%` must be escaped, e.g. `p@ss!` → `p%40ss%21`)
 
-Save this URL.
+### Outputs
 
-### Connection details
+After completing this step you should have the next values:  
 
-- **Transaction pooler (port `6543`)** is required. It assigns a dedicated server connection per transaction, which is what makes `SET LOCAL ROLE` and `set_config(..., true)` work correctly for RLS
-- Connect as **`postgres`** — the only role Supavisor recognizes. The code downgrades to `app_user` via `SET LOCAL ROLE` inside each RLS transaction
-- **`statement_cache_size=0`** is required because the transaction pooler does not support `PREPARE` statements
-- **`sslmode=verify-full`** is required for remote connections
-- Do **not** use session-level settings (`SET` without `LOCAL`) — they won't persist across requests in the transaction pooler
+| Key | Value | Where to get it | Purpose | 
+|--------|-------|-----------------|--------|
+| `SUPABASE_ACCESS_TOKEN` | Supabase personal access token | [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) | Github secret | 
+| `SUPABASE_PROJECT_ID` | Project reference ID | From the project URL: `supabase.com/dashboard/project/<project-ref>` | Github secret |
+| `SUPABASE_DB_PASSWORD` | Database password | Set during [project creation](#create-a-project) | Github secret |
+| `DATABASE_URL` | Connection URL | See [here](#construct-the-connection-url) | Server secret |
 
 </details>
 
@@ -107,29 +109,97 @@ Navigate to **Google Auth Platform → Clients** (or legacy *APIs & Services →
 
 Google allows multiple origins and redirect URIs per client, so both local and production can coexist.
 
+### Outputs
+
+After completing this step you should have the next values:  
+
+| Key | Value | Where to get it | Purpose | 
+|--------|-------|-----------------|--------|
+| `GOOGLE_CLIENT_ID` | Google Client ID | Final steps [here](#create-oauth-credentials) | Server secret | 
+| `GOOGLE_CLIENT_SECRET` | Google Client Secret | Final steps [here](#create-oauth-credentials) | Server secret | 
+
 </details>
 
-# Fork and configure
+<details>
+<summary><h2>Fly.io</h2></summary>
 
-1. [Fork this repository](https://github.com/alexzaitsev/family-health/fork) on GitHub
-2. In your fork, go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
-3. Add these secrets:
+Fly.io hosts the MCP server. You'll create an account, install the CLI, create an app, and set the runtime secrets it needs.
 
-| Secret | Value | Where to get it |
-|--------|-------|-----------------|
-| `SUPABASE_ACCESS_TOKEN` | Supabase personal access token | [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) |
-| `SUPABASE_PROJECT_ID` | Project reference ID | From the project URL: `supabase.com/dashboard/project/<project-ref>` |
-| `SUPABASE_DB_PASSWORD` | Database password | Set during project creation |
+### Install the CLI
 
-These secrets are used by the deploy workflow (`.github/workflows/deploy.yml`) to automatically push database migrations on every push to `main`. You can trigger workflow manually from Actions. 
+1. Install `flyctl`: `brew install flyctl` (or see [fly.io/docs/flyctl/install](https://fly.io/docs/flyctl/install/) for other methods)
+2. Log in: `fly auth login`
+
+### Create an app
+
+1. Run `fly apps create` and choose a name (e.g. `family-health-mcp`) and region
+2. Note the app name — you'll use it for secrets and GitHub Actions
+
+### Set runtime secrets
+
+The MCP server reads environment variables at runtime. Set them on your Fly app:
+
+```bash
+fly secrets set \
+  DATABASE_URL='your_db_url' \
+  GOOGLE_CLIENT_ID='your_google_client_id' \
+  GOOGLE_CLIENT_SECRET='your_google_client_secret' \
+  MCP_SERVER_URL='https://<your-app-name>.fly.dev' \
+  --app <your-app-name>
+```
+
+### Create a deploy token
+
+Generate a token for GitHub Actions to deploy on your behalf:
+
+```bash
+fly tokens create deploy --app <your-app-name>
+```
+
+Save this token — you'll add it as a GitHub Actions secret in the next section.
+
+### Update Google OAuth URIs
+
+After creating the app, go back to your Google Cloud OAuth client and update (if needed):
+
+- **Authorized JavaScript origins:** `https://<your-app-name>.fly.dev`
+- **Authorized redirect URIs:** `https://<your-app-name>.fly.dev/auth/callback`
+
+Keep localhost values too if you want to test it locally. 
+
+### Outputs
+
+After completing this step you should have the next values:  
+
+| Key | Value | Where to get it | Purpose | 
+|--------|-------|-----------------|--------|
+| `FLY_API_TOKEN` | Fly.io deploy token | `fly tokens create deploy --app <your-app-name>` | Github secret | 
+| `FLY_APP_NAME` | Fly.io app name | Chosen during `fly apps create` | Github secret | 
+
+</details>
 
 # Deployment
 
-## Apply Supabase migrations and deploy MCP server
+This section describes how to:
+- setup Github repository
+- apply database migrations
+- seed the data
+- deploy MCP server
+- try it with your MCP client
+
+### Setup Github repository
+
+1. [Fork this repository](https://github.com/alexzaitsev/family-health/fork) on GitHub
+2. In your fork, go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+3. Add secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`, `FLY_API_TOKEN`, `FLY_APP_NAME`.
+
+These secrets are used by the deploy workflow (`.github/workflows/deploy.yml`) to push database migrations and deploy the MCP server on every push to `main`. You can trigger the workflow manually from Actions.
+
+### Apply Supabase migrations and deploy MCP server
 
 Trigger manual `deploy` workflow from Actions. 
 
-## Add family members to Supabase
+### Add family members to Supabase
 
 Add each family member via the Supabase SQL Editor:
 
@@ -151,31 +221,18 @@ INSERT INTO person.preferences (user_id) VALUES ('your_user_id');
 
 To remove a user, delete their row from `person.users` — all user-specific rows (`health_profiles`, `preferences`) are removed automatically via cascading deletes. Shared tables are left intact.
 
-# Give it a try!
+### Give it a try!
 
 Connect the MCP server to your preferred AI client:
 
 **Claude.ai:**
 
-1. Go to [claude.ai](https://claude.ai) → **Settings** → **Integrations** → **Add More**
-2. Enter your server URL: `https://your-production-domain.com/mcp`
-3. Click **Connect** → authenticate with your Google account when prompted
+1. Go to [claude.ai](https://claude.ai) → **Left panel** → **Customize** → **Connectors** → **Add custom connector**
+2. Enter your server URL: `https://your-production-domain.com/mcp` and give connector the name. Leave advanced settings (OAuth Client ID, OAuth Client Secret) empty
+3. Click **Add**
+4. Find it in your connectors list and click **Connect** → authenticate with your Google account.
 
-**Claude Desktop:**
-
-Add to your Claude Desktop config (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "family-health": {
-      "url": "https://your-production-domain.com/mcp"
-    }
-  }
-}
-```
-
-Restart Claude Desktop and authenticate when prompted.
+Open new chat and test it. Explicitly tell Claude to use <your-connector-name>.
 
 **Other MCP clients:**
 
