@@ -1,9 +1,21 @@
 import os
 from contextlib import asynccontextmanager
 
+import asyncpg
 from data.db import close_pool, init_pool
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.google import GoogleProvider
+from key_value.aio.stores.postgresql import PostgreSQLStore
+from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+
+
+class _SupabaseKVStore(PostgreSQLStore):
+    """PostgreSQLStore with statement_cache_size=0 for Supabase transaction pooler."""
+
+    async def _create_pool(self) -> asyncpg.Pool:
+        return await asyncpg.create_pool(
+            self._url, statement_cache_size=0, min_size=1, max_size=2
+        )
 
 
 @asynccontextmanager
@@ -15,6 +27,14 @@ async def lifespan(server):
         await close_pool()
 
 
+oauth_store = FernetEncryptionWrapper(
+    key_value=_SupabaseKVStore(
+        url=os.environ["DATABASE_URL"], table_name="google_oauth"
+    ),
+    source_material=os.environ["GOOGLE_CLIENT_SECRET"],
+    salt="family-health-oauth",
+)
+
 auth_provider = GoogleProvider(
     client_id=os.environ["GOOGLE_CLIENT_ID"],
     client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
@@ -23,6 +43,7 @@ auth_provider = GoogleProvider(
         "openid",
         "https://www.googleapis.com/auth/userinfo.email",
     ],
+    client_storage=oauth_store,
 )
 
 mcp = FastMCP(

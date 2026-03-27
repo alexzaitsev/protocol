@@ -35,6 +35,11 @@ Supabase provides the PostgreSQL database. You'll set up a project, link it loca
 2. Click **New Project**, choose an organization, set a project name, database password, and region
 3. Note the **Project Reference ID** from the project URL: `https://supabase.com/dashboard/project/<project-ref>`
 
+### Enforce SSL
+
+For extra security it's recommended to enable "Enforce SSL on incoming connections" setting.
+It can be found using next link: https://supabase.com/dashboard/project/<project-ref>/database/settings#ssl-configuration
+
 ### Construct the connection URL
 
 The MCP server connects via asyncpg using a `DATABASE_URL` environment variable. Build it from your Supabase dashboard:
@@ -173,8 +178,8 @@ After completing this step you should have the next values:
 
 | Key | Value | Where to get it | Purpose | 
 |--------|-------|-----------------|--------|
-| `FLY_API_TOKEN` | Fly.io deploy token | `fly tokens create deploy --app <your-app-name>` | Github secret | 
-| `FLY_APP_NAME` | Fly.io app name | Chosen during `fly apps create` | Github secret | 
+| `FLY_API_TOKEN` | Fly.io deploy token | `fly tokens create deploy --app <your-app-name>` | Github secret |
+| `FLY_APP_NAME` | Fly.io app name | Chosen during `fly apps create` | Github secret |
 
 </details>
 
