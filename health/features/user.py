@@ -62,12 +62,23 @@ class UserPreferences(BaseModel):
 USER_ERROR = json.dumps({"error": "user not found"})
 
 
+def _tool_desc(desc: str) -> str:
+    return f"Get {desc[0].lower()}{desc[1:]}"
+
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+
+PROFILE_DESC = (
+    f"Basic demographics of the current user.\n{describe_schema(UserProfile)}"
+)
+
+
 @mcp.resource(
     uri="user://profile",
     name="User Basic Demographics",
-    description=(
-        f"Basic demographics of the current user.\n{describe_schema(UserProfile)}"
-    ),
+    description=PROFILE_DESC,
     mime_type="application/json",
 )
 async def user_profile() -> str:
@@ -77,13 +88,28 @@ async def user_profile() -> str:
     return UserProfile(**dict(row)).model_dump_json()
 
 
+@mcp.tool(name="get_user_profile", description=_tool_desc(PROFILE_DESC))
+async def get_user_profile() -> str:
+    row = await fetchrow_rls("SELECT * FROM person.users")
+    if row is None:
+        return USER_ERROR
+    return UserProfile(**dict(row)).model_dump_json()
+
+
+# ---------------------------------------------------------------------------
+# Health profile
+# ---------------------------------------------------------------------------
+
+HEALTH_PROFILE_DESC = (
+    f"Comprehensive health profile of the current user.\n"
+    f"{describe_schema(UserHealthProfile)}"
+)
+
+
 @mcp.resource(
     uri="user://health-profile",
     name="User Health Profile",
-    description=(
-        "Comprehensive health profile of the current user.\n"
-        f"{describe_schema(UserHealthProfile)}"
-    ),
+    description=HEALTH_PROFILE_DESC,
     mime_type="application/json",
 )
 async def user_health_profile() -> str:
@@ -93,16 +119,39 @@ async def user_health_profile() -> str:
     return UserHealthProfile(**dict(row)).model_dump_json()
 
 
+@mcp.tool(name="get_user_health_profile", description=_tool_desc(HEALTH_PROFILE_DESC))
+async def get_user_health_profile() -> str:
+    row = await fetchrow_rls("SELECT * FROM person.health_profiles")
+    if row is None:
+        return USER_ERROR
+    return UserHealthProfile(**dict(row)).model_dump_json()
+
+
+# ---------------------------------------------------------------------------
+# Preferences
+# ---------------------------------------------------------------------------
+
+PREFERENCES_DESC = (
+    f"Preferences and settings of the current user.\n"
+    f"{describe_schema(UserPreferences)}"
+)
+
+
 @mcp.resource(
     uri="user://preferences",
     name="User Preferences",
-    description=(
-        "Preferences and settings of the current user.\n"
-        f"{describe_schema(UserPreferences)}"
-    ),
+    description=PREFERENCES_DESC,
     mime_type="application/json",
 )
 async def user_preferences() -> str:
+    row = await fetchrow_rls("SELECT * FROM person.preferences")
+    if row is None:
+        return USER_ERROR
+    return UserPreferences(**dict(row)).model_dump_json()
+
+
+@mcp.tool(name="get_user_preferences", description=_tool_desc(PREFERENCES_DESC))
+async def get_user_preferences() -> str:
     row = await fetchrow_rls("SELECT * FROM person.preferences")
     if row is None:
         return USER_ERROR

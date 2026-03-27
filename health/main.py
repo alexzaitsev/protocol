@@ -1,5 +1,4 @@
-import user.resource  # noqa: F401 — register MCP resources
-
+import features.user  # noqa: F401 — register MCP
 from app import mcp
 
 
