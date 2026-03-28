@@ -6,7 +6,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "main",
-      "cwd": "${workspaceFolder}/health",
+      "cwd": "${workspaceFolder}/server",
       "envFile": "${workspaceFolder}/.env",
       "justMyCode": true
     }

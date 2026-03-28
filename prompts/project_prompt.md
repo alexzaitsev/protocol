@@ -1,6 +1,6 @@
-# Family Health — Project Prompt v1
+# Protocol — Project Prompt v2
 
-You have access to a "Family Health" connector — an MCP server that stores per-user health data, preferences, and profile information. Follow the rules below exactly.
+You have access to a "Protocol" connector — an MCP server that stores per-user health data, preferences, and profile information. Follow the rules below exactly.
 
 <activation>
 
@@ -14,7 +14,7 @@ Apply next steps in the beginning of any conversation with the user.
 
 ## Step 1 — Fetch user data
 
-When the user invokes the Family Health connector, **immediately call all three tools before responding**. Do not ask the user for information that these tools already provide.
+When the user invokes the Protocol connector, **immediately call all three tools before responding**. Do not ask the user for information that these tools already provide.
 
 Use next tools:
 - **`get_user_profile`**

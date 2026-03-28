@@ -1,4 +1,4 @@
-# Family Health
+# Protocol
 
 A supplement protocol engine with blood test correlation and full change history — designed for a household of 1 or more people who track what they take, why they take it, and whether it's working.
 
@@ -6,10 +6,10 @@ The system runs as an [MCP server](https://modelcontextprotocol.io/) on Fly.io w
 
 ### What it does
 
-- **Supplement lifecycle management** — add, modify, and remove supplements as atomic transactions. Every change is versioned using [SCD Type 2](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row), so you can reconstruct your exact protocol at any point in history.
-- **Blood test tracking** — record lab results with sex-specific reference ranges, flag out-of-range biomarkers, and correlate trends with supplement changes over time.
-- **Knowledge provenance** — link every supplement decision back to its source: a book, a paper, a practitioner recommendation.
-- **Protocol generation** — produce formatted Markdown/PDF snapshots of your current stack, grouped by time-of-day blocks, with dosages and notes.
+- ⏳ **Supplement lifecycle management** — add, modify, and remove supplements as atomic transactions. Every change is versioned using [SCD Type 2](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row), so you can reconstruct your exact protocol at any point in history.
+- ⏳ **Blood test tracking** — record lab results with sex-specific reference ranges, flag out-of-range biomarkers, and correlate trends with supplement changes over time.
+- ⏳ **Knowledge provenance** — link every supplement decision back to its source: a book, a paper, a practitioner recommendation.
+- ⏳ **Protocol generation** — produce formatted Markdown/PDF snapshots of your current stack, grouped by time-of-day blocks, with dosages and notes.
 
 ### What it doesn't do
 
@@ -32,7 +32,7 @@ Supplement trackers handle daily logging well but can't reconstruct what you wer
 
 # Overview
 
-Family Health is a Python MCP server built with [FastMCP](https://github.com/jlowin/fastmcp). It connects to Supabase PostgreSQL via asyncpg and uses streamable HTTP transport with OAuth 2.1 (Google) for authentication. Row-Level Security (RLS) enforces per-user data isolation at the database level.
+Protocol is a Python MCP server built with [FastMCP](https://github.com/jlowin/fastmcp). It connects to Supabase PostgreSQL via asyncpg and uses streamable HTTP transport with OAuth 2.1 (Google) for authentication. Row-Level Security (RLS) enforces per-user data isolation at the database level.
 
 The server exposes MCP tools that AI assistants call on your behalf — querying your supplement protocol, recording blood tests, running duration reviews, generating protocol documents. The LLM handles natural language understanding, PDF parsing, and analytical reasoning; the server handles structured data, transactions, and access control.
 
@@ -104,7 +104,7 @@ Google Cloud provides OAuth 2.0 for user authentication. Since this is a family-
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com)
 2. Click the project dropdown → **New Project**
-3. Enter a name (e.g. "Family Health MCP") → **Create**
+3. Enter a name (e.g. "Protocol MCP") → **Create**
 
 ### Configure OAuth consent
 
@@ -128,7 +128,7 @@ Navigate to **Google Auth Platform → Clients** (or legacy *APIs & Services →
 
 1. Click **Create Client** (or *Create Credentials → OAuth client ID*)
 2. Application type: **Web application**
-3. Name: anything (e.g. "Family Health MCP")
+3. Name: anything (e.g. "Protocol MCP")
 4. Under **Authorized JavaScript origins**, add your server's base URL (e.g. `https://your-production-domain.com`)
 5. Under **Authorized redirect URIs**, add your server's callback URL: `https://your-production-domain.com/auth/callback`
 6. Click **Create**
@@ -165,7 +165,7 @@ Fly.io hosts the MCP server. You'll create an account, install the CLI, create a
 
 ### Create an app
 
-1. Run `fly apps create` and choose a name (e.g. `family-health-mcp`) and region
+1. Run `fly apps create` and choose a name (e.g. `protocol-mcp`) and region
 2. Note the app name — you'll use it for secrets and GitHub Actions
 
 ### Set runtime secrets
@@ -222,7 +222,7 @@ This section describes how to:
 
 ### Setup Github repository
 
-1. [Fork this repository](https://github.com/alexzaitsev/family-health/fork) on GitHub
+1. [Fork this repository](https://github.com/alexzaitsev/protocol/fork) on GitHub
 2. In your fork, go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 3. Add secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`, `FLY_API_TOKEN`, `FLY_APP_NAME`.
 
@@ -277,7 +277,7 @@ Any client that supports streamable HTTP transport with OAuth can connect using 
 Create a new project, paste the [project prompt](prompts/project_prompt.md) into the project instructions. Modify first lines to match your <connector-name> so Claude can correctly identify the connector.
 
 **Other MCP clients:**
-Copy the contents of [project prompt](prompts/project_prompt.md) into your client's system prompt or project instructions. The prompt instructs the model to call the Family Health MCP tools and apply user preferences to health-related responses.
+Copy the contents of [project prompt](prompts/project_prompt.md) into your client's system prompt or project instructions. The prompt instructs the model to call the Protocol MCP tools and apply user preferences to health-related responses.
 
 Open new chat in your project and test it. 
 
@@ -294,8 +294,8 @@ Open new chat in your project and test it.
 1. Clone your fork and install dependencies:
 
 ```bash
-git clone https://github.com/<your-username>/family-health.git
-cd family-health/health
+git clone https://github.com/<your-username>/protocol.git
+cd protocol/server
 uv sync
 ```
 
@@ -305,7 +305,7 @@ uv sync
 cp .env.example .env
 ```
 
-> **SSL certificate:** The `PGSSLROOTCERT` variable points asyncpg to the Supabase CA certificate for `sslmode=verify-full`. The default value `data/prod-ca-2021.crt` is relative to `health/` (the working directory). In production (Docker), the cert is copied to the default location (`~/.postgresql/root.crt`) instead.
+> **SSL certificate:** The `PGSSLROOTCERT` variable points asyncpg to the Supabase CA certificate for `sslmode=verify-full`. The default value `data/prod-ca-2021.crt` is relative to `server/` (the working directory). In production (Docker), the cert is copied to the default location (`~/.postgresql/root.crt`) instead.
 
 3. Link and push database migrations (if not done already):
 
@@ -322,7 +322,7 @@ supabase db push
 **Terminal:**
 
 ```bash
-cd health
+cd server
 uv run main.py
 ```
 

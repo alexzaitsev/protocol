@@ -41,7 +41,7 @@ jobs:
 
       - name: Deploy to Fly.io
         run: flyctl deploy --app "$FLY_APP_NAME" --ha=false
-        working-directory: health
+        working-directory: server
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_APP_NAME: ${{ secrets.FLY_APP_NAME }}

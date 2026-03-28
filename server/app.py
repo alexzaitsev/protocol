@@ -32,7 +32,7 @@ oauth_store = FernetEncryptionWrapper(
         url=os.environ["DATABASE_URL"], table_name="google_oauth"
     ),
     source_material=os.environ["GOOGLE_CLIENT_SECRET"],
-    salt="family-health-oauth",
+    salt="protocol-oauth",
 )
 
 auth_provider = GoogleProvider(
@@ -47,10 +47,10 @@ auth_provider = GoogleProvider(
 )
 
 mcp = FastMCP(
-    name="Family Health",
+    name="Protocol",
     version="1.0.0",
-    website_url="https://github.com/alexzaitsev/family-health",
+    website_url="https://github.com/alexzaitsev/protocol",
     auth=auth_provider,
     lifespan=lifespan,
-    instructions="Family health tracking server. Authenticated per-user — all data is scoped to the signed-in user via OAuth.",
+    instructions="Protocol server. Authenticated per-user — all data is scoped to the signed-in user via OAuth.",
 )
