@@ -44,10 +44,10 @@ CREATE TABLE person.preferences (
     user_id             TEXT PRIMARY KEY REFERENCES person.users(id) ON DELETE CASCADE,
     location            TEXT,                                  -- city, region, country
     occupation          TEXT,
-    language            TEXT NOT NULL DEFAULT 'en',
-    units               TEXT NOT NULL DEFAULT 'metric',
-    currency            TEXT,
-    date_format         TEXT DEFAULT 'YYYY-MM-DD',
+    language            TEXT NOT NULL DEFAULT 'en' CHECK (language ~ '^[a-z]{2}$'),
+    units               TEXT NOT NULL DEFAULT 'metric' CHECK (units IN ('metric', 'imperial')),
+    currency            TEXT NOT NULL DEFAULT 'USD' CHECK (currency ~ '^[A-Z]{3}$'),
+    date_format         TEXT NOT NULL DEFAULT 'YYYY-MM-DD' CHECK (date_format IN ('YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY', 'DD.MM.YYYY', 'YYYY/MM/DD', 'MM-DD-YYYY', 'DD-MM-YYYY')),
     communication       TEXT
 );
 
