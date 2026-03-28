@@ -1,3 +1,6 @@
+# Copyright 2026 Alex Zaitsev
+# SPDX-License-Identifier: AGPL-3.0-only
+
 import json
 
 from pydantic import BaseModel, Field

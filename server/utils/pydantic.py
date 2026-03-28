@@ -1,3 +1,6 @@
+# Copyright 2026 Alex Zaitsev
+# SPDX-License-Identifier: AGPL-3.0-only
+
 import json
 import types
 from typing import Any, Union, get_args, get_origin

@@ -1,3 +1,6 @@
+# Copyright 2026 Alex Zaitsev
+# SPDX-License-Identifier: AGPL-3.0-only
+
 from pydantic import BaseModel
 
 from utils.db import build_update, dump_models

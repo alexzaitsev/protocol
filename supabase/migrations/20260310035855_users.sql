@@ -1,3 +1,6 @@
+-- Copyright 2026 Alex Zaitsev
+-- SPDX-License-Identifier: AGPL-3.0-only
+
 CREATE SCHEMA person;
 
 GRANT USAGE ON SCHEMA person TO app_user;

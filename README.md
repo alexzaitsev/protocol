@@ -29,6 +29,7 @@ Supplement trackers handle daily logging well but can't reconstruct what you wer
 - [Deployment](#deployment)
 - [Usage](#usage)
 - [Development](#development)
+- [License](#license)
 
 # Overview
 
@@ -340,3 +341,9 @@ npx @modelcontextprotocol/inspector
 3. Authenticate using "OAuth Authentication" - "Quick OAuth Flow"
 4. Click **Connect**
 5. Use Inspector to query Resources, Tools, Prompts, etc.
+
+# License
+
+Copyright 2026 Alex Zaitsev  
+This project is licensed under the GNU Affero General Public License v3.0.  
+Commercial use requires a separate written agreement.  
