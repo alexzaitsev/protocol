@@ -10,6 +10,7 @@ An MCP server for tracking family health data — supplements, blood tests, heal
   - [Google Cloud](#google-cloud)
   - [Fly.io](#flyio)
 - [Deployment](#deployment)
+- [Usage](#usage)
 - [Development](#development)
 
 # Overview
@@ -226,7 +227,9 @@ INSERT INTO person.preferences (user_id) VALUES ('your_user_id');
 
 To remove a user, delete their row from `person.users` — all user-specific rows (`health_profiles`, `preferences`) are removed automatically via cascading deletes. Shared tables are left intact.
 
-### Give it a try!
+# Usage
+
+### Connect to MCP server
 
 Connect the MCP server to your preferred AI client:
 
@@ -237,11 +240,19 @@ Connect the MCP server to your preferred AI client:
 3. Click **Add**
 4. Find it in your connectors list and click **Connect** → authenticate with your Google account.
 
-Open new chat and test it. Explicitly tell Claude to use <your-connector-name>.
-
 **Other MCP clients:**
 
 Any client that supports streamable HTTP transport with OAuth can connect using the server URL: `https://your-production-domain.com/mcp`
+
+### Create project
+
+**Claude.ai:**
+Create a new project, paste the [project prompt](prompts/project_prompt.md) into the project instructions. Modify first lines to match your <connector-name> so Claude can correctly identify the connector.
+
+**Other MCP clients:**
+Copy the contents of [project prompt](prompts/project_prompt.md) into your client's system prompt or project instructions. The prompt instructs the model to call the Family Health MCP tools and apply user preferences to health-related responses.
+
+Open new chat in your project and test it. 
 
 # Development
 
