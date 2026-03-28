@@ -1,6 +1,23 @@
 # Family Health
 
-An MCP server for tracking family health data — supplements, blood tests, health profiles, and knowledge. Backed by Supabase PostgreSQL.
+A supplement protocol engine with blood test correlation and full change history — designed for a household of 1 or more people who track what they take, why they take it, and whether it's working.
+
+The system runs as an [MCP server](https://modelcontextprotocol.io/) on Fly.io with a Supabase PostgreSQL backend. There is no GUI — you interact with your data entirely through AI assistants like Claude. Ask "what do I take this morning?", record blood test results from a PDF, review which supplements have been running too long without a check-in, or trace why you started taking something in the first place.
+
+### What it does
+
+- **Supplement lifecycle management** — add, modify, and remove supplements as atomic transactions. Every change is versioned using [SCD Type 2](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row), so you can reconstruct your exact protocol at any point in history.
+- **Blood test tracking** — record lab results with sex-specific reference ranges, flag out-of-range biomarkers, and correlate trends with supplement changes over time.
+- **Knowledge provenance** — link every supplement decision back to its source: a book, a paper, a practitioner recommendation.
+- **Protocol generation** — produce formatted Markdown/PDF snapshots of your current stack, grouped by time-of-day blocks, with dosages and notes.
+
+### What it doesn't do
+
+This is not a medical device. It doesn't diagnose, prescribe, or replace professional advice. It doesn't ingest wearable data or sensor readings. It doesn't have a web dashboard or a mobile app.
+
+### Why not use an existing app?
+
+Supplement trackers handle daily logging well but can't reconstruct what you were taking 6 months ago or correlate it with blood work. Blood test platforms analyze biomarkers but treat supplements as recommendations, not tracked protocols. Nothing combines protocol versioning, biomarker correlation, and an AI-native interface in a single self-hosted system.
 
 # Table of Contents
 
@@ -15,7 +32,17 @@ An MCP server for tracking family health data — supplements, blood tests, heal
 
 # Overview
 
-The MCP server (Python / FastMCP) connects to Supabase PostgreSQL via asyncpg. It uses streamable HTTP transport with OAuth 2.1 (Google) for authentication. Row-Level Security (RLS) enforces per-user data isolation at the database level.
+Family Health is a Python MCP server built with [FastMCP](https://github.com/jlowin/fastmcp). It connects to Supabase PostgreSQL via asyncpg and uses streamable HTTP transport with OAuth 2.1 (Google) for authentication. Row-Level Security (RLS) enforces per-user data isolation at the database level.
+
+The server exposes MCP tools that AI assistants call on your behalf — querying your supplement protocol, recording blood tests, running duration reviews, generating protocol documents. The LLM handles natural language understanding, PDF parsing, and analytical reasoning; the server handles structured data, transactions, and access control.
+
+**Architecture:** Claude/any MCP client → MCP server (Fly.io) → Supabase PostgreSQL
+
+**Key design decisions:**
+- SCD Type 2 for supplement history (point-in-time protocol reconstruction)
+- Atomic transactions for all mutations (no orphaned or inconsistent state)
+- AI-first interface (no GUI — the LLM is the UX layer)
+- Self-hosted, open-source, no vendor lock-in
 
 # Prerequisites
 
