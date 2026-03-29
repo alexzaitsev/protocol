@@ -53,7 +53,7 @@ CREATE POLICY user_isolation ON person.health_profiles
 
 CREATE TABLE person.preferences(
   user_id text PRIMARY KEY REFERENCES person.users(id) ON DELETE CASCADE,
-  location text, -- city, region, country
+  location text,
   occupation text,
   "language" text NOT NULL DEFAULT 'en' CHECK ("language" ~ '^[a-z]{2}$'),
   units text NOT NULL DEFAULT 'metric' CHECK (units IN ('metric',

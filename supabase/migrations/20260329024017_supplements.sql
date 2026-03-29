@@ -9,11 +9,11 @@ CREATE TABLE supplement.inventory(
   name text NOT NULL,
   brand text NOT NULL,
   category text NOT NULL,
-  form text NOT NULL, -- capsule, powder, liquid, etc.
-  dosage_per_unit text NOT NULL, -- "500mg", "1000 IU"
+  form text NOT NULL,
+  dosage_per_unit text NOT NULL,
   features jsonb NOT NULL DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(features) = 'array'), -- ["timed release", "quick dissolve"]
-  url text, -- URL where to buy
+    (jsonb_typeof(features) = 'array'),
+  url text,
   UNIQUE NULLS NOT DISTINCT (name, brand)
 );
 
@@ -37,6 +37,23 @@ CREATE TABLE supplement.supplements(
 );
 
 GRANT SELECT, INSERT, UPDATE ON supplement.supplements TO app_user;
+
+CREATE TABLE supplement.context (
+    id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
+    inventory_id INTEGER NOT NULL REFERENCES supplement.inventory(id),
+    purpose      TEXT NOT NULL,
+    UNIQUE (user_id, inventory_id)
+);
+
+GRANT SELECT, INSERT, UPDATE ON supplement.context TO app_user;
+
+ALTER TABLE supplement.context ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY user_isolation ON supplement.context
+    FOR ALL
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
 
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA supplement TO app_user;
 
