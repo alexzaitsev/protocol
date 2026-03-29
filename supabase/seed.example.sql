@@ -1,3 +1,7 @@
+-------------------------------------------------------------
+--------------------------- USERS ---------------------------
+-------------------------------------------------------------
+
 -- Users
 INSERT INTO person.users (id, google_email, display_name, sex, date_of_birth) VALUES
     ('jane', 'jane@google.com', 'Jane', 'f', '1990-05-15'),
@@ -128,3 +132,65 @@ INSERT INTO person.preferences (
     'YYYY-MM-DD',                    -- date_format
     'Direct and technical. Include mechanism of action when relevant. Data and numbers preferred over qualitative descriptions.' -- communication
 );
+
+-------------------------------------------------------------
+------------------------ SUPPLEMENTS ------------------------
+-------------------------------------------------------------
+
+-- Inventory (shared catalog)
+INSERT INTO supplement.inventory
+    (id, name, brand, category, form, dosage_per_unit, features)
+OVERRIDING SYSTEM VALUE
+VALUES
+    (1,  'Iron Bisglycinate',         'Thorne',              'mineral',       'capsule',     '36mg',           '[]'::jsonb),
+    (2,  'Vitamin C',                 'NOW Foods',           'vitamin',       'capsule',     '1000mg',         '[]'::jsonb),
+    (3,  'Vitamin D3',                'Thorne',              'vitamin',       'liquid drop', '1000 IU',        '[]'::jsonb),
+    (4,  'Magnesium Glycinate',       'Pure Encapsulations', 'mineral',       'capsule',     '120mg',          '[]'::jsonb),
+    (5,  'Quercetin',                 'Thorne',              'flavonoid',     'capsule',     '250mg',          '[]'::jsonb),
+    (6,  'Daily Synbiotic',           'Seed',                'probiotic',     'capsule',     '24 billion CFU', '["synbiotic"]'::jsonb),
+    (7,  'Omega-3 Fish Oil',          'Nordic Naturals',     'fatty acid',    'softgel',     '1100mg EPA+DHA', '["triglyceride form"]'::jsonb),
+    (8,  'Glucosamine + Chondroitin', 'NOW Foods',           'joint support', 'capsule',     '750mg/600mg',    '[]'::jsonb),
+    (9,  'CoQ10',                     'Thorne',              'antioxidant',   'capsule',     '100mg',          '["ubiquinone"]'::jsonb),
+    (10, 'Creatine Monohydrate',      'Thorne',              'amino acid',    'powder',      '5g',             '["micronized"]'::jsonb);
+
+-- Supplements: Jane
+-- Health priorities: iron optimization, diabetes prevention, stress/sleep, allergy reduction
+INSERT INTO supplement.supplements
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, breaks)
+OVERRIDING SYSTEM VALUE
+VALUES
+    -- Iron Bisglycinate: iron deficiency management
+    (1, 'jane', 1, '["morning"]'::jsonb,            '1 capsule',  'daily', '2025-10-15', NULL,          NULL, NULL),
+    -- Vitamin C: pairs with iron for absorption
+    (2, 'jane', 2, '["morning"]'::jsonb,            '1 capsule',  'daily', '2025-10-15', NULL,          NULL, NULL),
+    -- Vitamin D3: original dose (ended, replaced by id=4)
+    (3, 'jane', 3, '["morning"]'::jsonb,            '1 drop',     'daily', '2025-09-01', '2025-12-01',  NULL, NULL),
+    -- Vitamin D3: increased dose after blood work (SCD Type 2)
+    (4, 'jane', 3, '["morning"]'::jsonb,            '2 drops',    'daily', '2025-12-01', NULL,          3,    NULL),
+    -- Magnesium Glycinate: stress and sleep support
+    (5, 'jane', 4, '["evening"]'::jsonb,            '2 capsules', 'daily', '2026-01-10', NULL,          NULL, NULL),
+    -- Quercetin: seasonal allergy management (morning + evening split)
+    (6, 'jane', 5, '["morning", "evening"]'::jsonb, '1 capsule',  'daily', '2026-02-15', NULL,          NULL, NULL);
+
+-- Supplements: John
+-- Health priorities: cardiovascular health, joint/back health, muscle recovery, sleep
+INSERT INTO supplement.supplements
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id)
+OVERRIDING SYSTEM VALUE
+VALUES
+    -- Omega-3 Fish Oil: cardiovascular and joint support
+    (7,  'john', 7, '["morning"]'::jsonb,            '2 softgels', 'daily', '2025-08-01', NULL,          NULL),
+    -- Magnesium Glycinate: original dose (ended, replaced by id=9)
+    (8,  'john', 4, '["evening"]'::jsonb,            '1 capsule',  'daily', '2025-07-15', '2025-11-01',  NULL),
+    -- Magnesium Glycinate: increased for BP management (SCD Type 2)
+    (9,  'john', 4, '["evening"]'::jsonb,            '2 capsules', 'daily', '2025-11-01', NULL,          8   ),
+    -- CoQ10: cardiovascular health
+    (10, 'john', 9, '["morning"]'::jsonb,            '1 capsule',  'daily', '2025-09-01', NULL,          NULL),
+    -- Creatine Monohydrate: muscle recovery (8 weeks on, 4 weeks off)
+    (11, 'john', 10, '["any"]'::jsonb,               '1 scoop',    'daily', '2025-06-01', NULL,          NULL),
+    -- Glucosamine + Chondroitin: joint and back health (morning + evening split)
+    (12, 'john', 8, '["morning", "evening"]'::jsonb, '1 capsule',  'daily', '2026-01-05', NULL,          NULL);
+
+-- Reset identity sequences after explicit ID inserts
+SELECT setval(pg_get_serial_sequence('supplement.inventory', 'id'), (SELECT MAX(id) FROM supplement.inventory));
+SELECT setval(pg_get_serial_sequence('supplement.supplements', 'id'), (SELECT MAX(id) FROM supplement.supplements));
