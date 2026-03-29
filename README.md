@@ -255,6 +255,20 @@ INSERT INTO person.preferences (user_id) VALUES ('your_user_id');
 
 To remove a user, delete their row from `person.users` — all user-specific rows (`health_profiles`, `preferences`) are removed automatically via cascading deletes. Shared tables are left intact.
 
+### Set preferred timezone in Supabase
+
+This is an optional step, needed for correct start/end date in `supplements` and other tables. You can skip it if UTC timestamps are OK. This sets the timezone for entire database (all users). 
+
+1. Find your timezone name in [this
+  list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+2. Go to **Supabase Dashboard** → your project → **SQL Editor** and run:
+
+```sql
+ALTER DATABASE postgres SET timezone = 'America/New_York';
+```
+
+Replace `America/New_York` with your timezone.
+
 # Usage
 
 ### Connect to MCP server
