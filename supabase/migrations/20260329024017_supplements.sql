@@ -8,12 +8,12 @@ GRANT USAGE ON SCHEMA supplement TO app_user;
 CREATE TABLE supplement.inventory (
     id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name             TEXT NOT NULL,
-    brand            TEXT,
-    category         TEXT,
-    form             TEXT,                                                                  -- capsule, powder, liquid, etc.
-    dosage_per_unit  TEXT,                                                                  -- "500mg", "1000 IU"
-    features         JSONB DEFAULT '[]'::jsonb CHECK (jsonb_typeof(features) = 'array'),    -- ["timed release", "quick dissolve"]
-    url              TEXT,                                                                  -- URL where to buy
+    brand            TEXT NOT NULL,
+    category         TEXT NOT NULL,
+    form             TEXT NOT NULL,                                                                -- capsule, powder, liquid, etc.
+    dosage_per_unit  TEXT NOT NULL,                                                                -- "500mg", "1000 IU"
+    features         JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(features) = 'array'),  -- ["timed release", "quick dissolve"]
+    url              TEXT,                                                                         -- URL where to buy
     UNIQUE NULLS NOT DISTINCT (name, brand)
 );
 
