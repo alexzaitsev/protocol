@@ -156,7 +156,7 @@ VALUES
 -- Supplements: Jane
 -- Health priorities: iron optimization, diabetes prevention, stress/sleep, allergy reduction
 INSERT INTO supplement.supplements
-    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, breaks)
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
     -- Iron Bisglycinate: iron deficiency management
@@ -166,7 +166,7 @@ VALUES
     -- Vitamin D3: original dose (ended, replaced by id=4)
     (3, 'jane', 3, '["morning"]'::jsonb,            '1 drop',     'daily', '2025-09-01', '2025-12-01',  NULL, NULL),
     -- Vitamin D3: increased dose after blood work (SCD Type 2)
-    (4, 'jane', 3, '["morning"]'::jsonb,            '2 drops',    'daily', '2025-12-01', NULL,          3,    NULL),
+    (4, 'jane', 3, '["morning"]'::jsonb,            '2 drops',    'daily', '2025-12-01', NULL,          3,    'Blood work showed 25(OH)D at 22 ng/mL — below optimal range; doubled dose per provider recommendation'),
     -- Magnesium Glycinate: stress and sleep support
     (5, 'jane', 4, '["evening"]'::jsonb,            '2 capsules', 'daily', '2026-01-10', NULL,          NULL, NULL),
     -- Quercetin: seasonal allergy management (morning + evening split)
@@ -175,22 +175,39 @@ VALUES
 -- Supplements: John
 -- Health priorities: cardiovascular health, joint/back health, muscle recovery, sleep
 INSERT INTO supplement.supplements
-    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id)
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
     -- Omega-3 Fish Oil: cardiovascular and joint support
-    (7,  'john', 7, '["morning"]'::jsonb,            '2 softgels', 'daily', '2025-08-01', NULL,          NULL),
+    (7,  'john', 7, '["morning"]'::jsonb,            '2 softgels', 'daily', '2025-08-01', NULL,          NULL, NULL),
     -- Magnesium Glycinate: original dose (ended, replaced by id=9)
-    (8,  'john', 4, '["evening"]'::jsonb,            '1 capsule',  'daily', '2025-07-15', '2025-11-01',  NULL),
+    (8,  'john', 4, '["evening"]'::jsonb,            '1 capsule',  'daily', '2025-07-15', '2025-11-01',  NULL, NULL),
     -- Magnesium Glycinate: increased for BP management (SCD Type 2)
-    (9,  'john', 4, '["evening"]'::jsonb,            '2 capsules', 'daily', '2025-11-01', NULL,          8   ),
+    (9,  'john', 4, '["evening"]'::jsonb,            '2 capsules', 'daily', '2025-11-01', NULL,          8,    'BP readings averaging 138/87 over 3 months; increased magnesium per cardiologist advice to support BP management'),
     -- CoQ10: cardiovascular health
-    (10, 'john', 9, '["morning"]'::jsonb,            '1 capsule',  'daily', '2025-09-01', NULL,          NULL),
+    (10, 'john', 9, '["morning"]'::jsonb,            '1 capsule',  'daily', '2025-09-01', NULL,          NULL, NULL),
     -- Creatine Monohydrate: muscle recovery (8 weeks on, 4 weeks off)
-    (11, 'john', 10, '["any"]'::jsonb,               '1 scoop',    'daily', '2025-06-01', NULL,          NULL),
+    (11, 'john', 10, '["any"]'::jsonb,               '1 scoop',    'daily', '2025-06-01', NULL,          NULL, NULL),
     -- Glucosamine + Chondroitin: joint and back health (morning + evening split)
-    (12, 'john', 8, '["morning", "evening"]'::jsonb, '1 capsule',  'daily', '2026-01-05', NULL,          NULL);
+    (12, 'john', 8, '["morning", "evening"]'::jsonb, '1 capsule',  'daily', '2026-01-05', NULL,          NULL, NULL);
+
+-- Context: Jane
+INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
+    ('jane', 1, 'Iron optimization — address borderline ferritin (monitoring since mid-2025)'),
+    ('jane', 2, 'Vitamin C paired with iron to enhance non-heme absorption'),
+    ('jane', 3, 'Baseline vitamin D support'),
+    ('jane', 4, 'Magnesium for stress management and sleep quality improvement'),
+    ('jane', 5, 'Quercetin as natural antihistamine for seasonal allergy symptom reduction');
+
+-- Context: John
+INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
+    ('john', 4, 'Magnesium for blood pressure management and sleep quality'),
+    ('john', 7, 'Omega-3 for cardiovascular protection (family history) and joint anti-inflammatory support'),
+    ('john', 8, 'Glucosamine + chondroitin for joint and lower back health maintenance'),
+    ('john', 9, 'CoQ10 for cardiovascular health and cellular energy production'),
+    ('john', 10, 'Creatine for muscle recovery and strength maintenance');
 
 -- Reset identity sequences after explicit ID inserts
 SELECT setval(pg_get_serial_sequence('supplement.inventory', 'id'), (SELECT MAX(id) FROM supplement.inventory));
 SELECT setval(pg_get_serial_sequence('supplement.supplements', 'id'), (SELECT MAX(id) FROM supplement.supplements));
+SELECT setval(pg_get_serial_sequence('supplement.context', 'id'), (SELECT MAX(id) FROM supplement.context));
