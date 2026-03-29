@@ -34,7 +34,7 @@ CREATE TABLE supplement.supplements (
     started_at   DATE NOT NULL DEFAULT CURRENT_DATE,
     ended_at     DATE,
     replaces_id  INTEGER REFERENCES supplement.supplements(id),
-    note         TEXT,
+    note         TEXT,                                                        -- reason of introduction or justification of change
     CHECK (ended_at IS NULL OR ended_at >= started_at)
 );
 
