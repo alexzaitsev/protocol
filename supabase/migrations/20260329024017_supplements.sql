@@ -24,9 +24,7 @@ CREATE TABLE supplement.log (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
   inventory_id integer NOT NULL REFERENCES supplement.inventory(id),
-  time_blocks text[] NOT NULL CHECK (time_blocks <@ ARRAY['morning',
-    'lunch', 'evening', 'any'] AND
-    array_length(time_blocks, 1) > 0),
+  time_blocks text[] NOT NULL CHECK (time_blocks <@ ARRAY['morning', 'lunch', 'evening', 'any'] AND array_length(time_blocks, 1) > 0),
   dosage text NOT NULL,
   frequency text NOT NULL,
   started_at date NOT NULL DEFAULT CURRENT_DATE,
@@ -34,8 +32,7 @@ CREATE TABLE supplement.log (
   replaces_id integer REFERENCES supplement.log(id),
   replacement_reason text,
   CHECK (ended_at IS NULL OR ended_at >= started_at),
-  CHECK ((replaces_id IS NULL AND replacement_reason IS NULL) OR (replaces_id
-    IS NOT NULL AND replacement_reason IS NOT NULL))
+  CHECK ((replaces_id IS NULL AND replacement_reason IS NULL) OR (replaces_id IS NOT NULL AND replacement_reason IS NOT NULL))
 );
 
 GRANT SELECT, INSERT, UPDATE ON supplement.log TO app_user;

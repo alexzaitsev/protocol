@@ -29,19 +29,14 @@ CREATE POLICY users_modify ON person.users
 
 CREATE TABLE person.health_profiles(
   user_id text PRIMARY KEY REFERENCES person.users(id) ON DELETE CASCADE,
-  conditions jsonb DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(conditions) = 'array'),
-  family_history jsonb DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(family_history) = 'array'),
-  substances jsonb DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(substances) = 'array'),
+  conditions jsonb DEFAULT '[]'::jsonb CHECK (jsonb_typeof(conditions) = 'array'),
+  family_history jsonb DEFAULT '[]'::jsonb CHECK (jsonb_typeof(family_history) = 'array'),
+  substances jsonb DEFAULT '[]'::jsonb CHECK (jsonb_typeof(substances) = 'array'),
   diet_notes text,
   activity_notes text,
-  safety_checks jsonb DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(safety_checks) = 'array'),
+  safety_checks jsonb DEFAULT '[]'::jsonb CHECK (jsonb_typeof(safety_checks) = 'array'),
   methodology_notes text,
-  health_priorities jsonb DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(health_priorities) = 'array')
+  health_priorities jsonb DEFAULT '[]'::jsonb CHECK (jsonb_typeof(health_priorities) = 'array')
 );
 
 ALTER TABLE person.health_profiles ENABLE ROW LEVEL SECURITY;
@@ -56,12 +51,9 @@ CREATE TABLE person.preferences(
   location text,
   occupation text,
   "language" text NOT NULL DEFAULT 'en' CHECK ("language" ~ '^[a-z]{2}$'),
-  units text NOT NULL DEFAULT 'metric' CHECK (units IN ('metric',
-    'imperial')),
+  units text NOT NULL DEFAULT 'metric' CHECK (units IN ('metric', 'imperial')),
   currency text NOT NULL DEFAULT 'USD' CHECK (currency ~ '^[A-Z]{3}$'),
-  date_format text NOT NULL DEFAULT 'YYYY-MM-DD' CHECK (date_format IN
-    ('YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY', 'DD.MM.YYYY',
-    'YYYY/MM/DD', 'MM-DD-YYYY', 'DD-MM-YYYY')),
+  date_format text NOT NULL DEFAULT 'YYYY-MM-DD' CHECK (date_format IN ('YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY', 'DD.MM.YYYY', 'YYYY/MM/DD', 'MM-DD-YYYY', 'DD-MM-YYYY')),
   communication text
 );
 
