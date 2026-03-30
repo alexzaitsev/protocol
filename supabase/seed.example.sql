@@ -156,40 +156,40 @@ VALUES
 -- Supplements: Jane
 -- Health priorities: iron optimization, diabetes prevention, stress/sleep, allergy reduction
 INSERT INTO supplement.log
-    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, end_reason, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
     -- Iron Bisglycinate: iron deficiency management
-    (1, 'jane', 1, '{morning}',          '1 capsule',  'daily', '2025-10-15', NULL,          NULL, NULL),
+    (1, 'jane', 1, '{morning}',          '1 capsule',  'daily', '2025-10-15', NULL, NULL,          NULL, NULL),
     -- Vitamin C: pairs with iron for absorption
-    (2, 'jane', 2, '{morning}',          '1 capsule',  'daily', '2025-10-15', NULL,          NULL, NULL),
+    (2, 'jane', 2, '{morning}',          '1 capsule',  'daily', '2025-10-15', NULL, NULL,          NULL, NULL),
     -- Vitamin D3: original dose (ended, replaced by id=4)
-    (3, 'jane', 3, '{morning}',          '1 drop',     'daily', '2025-09-01', '2025-12-01',  NULL, NULL),
+    (3, 'jane', 3, '{morning}',          '1 drop',     'daily', '2025-09-01', '2025-12-01', 'replaced — dose increase after blood work',  NULL, NULL),
     -- Vitamin D3: increased dose after blood work (SCD Type 2)
-    (4, 'jane', 3, '{morning}',          '2 drops',    'daily', '2025-12-01', NULL,          3,    'Blood work showed 25(OH)D at 22 ng/mL — below optimal range; doubled dose per provider recommendation'),
+    (4, 'jane', 3, '{morning}',          '2 drops',    'daily', '2025-12-01', NULL, NULL,          3,    'Blood work showed 25(OH)D at 22 ng/mL — below optimal range; doubled dose per provider recommendation'),
     -- Magnesium Glycinate: stress and sleep support
-    (5, 'jane', 4, '{evening}',          '2 capsules', 'daily', '2026-01-10', NULL,          NULL, NULL),
+    (5, 'jane', 4, '{evening}',          '2 capsules', 'daily', '2026-01-10', NULL, NULL,          NULL, NULL),
     -- Quercetin: seasonal allergy management (morning + evening split)
-    (6, 'jane', 5, '{morning,evening}',  '1 capsule',  'daily', '2026-02-15', NULL,          NULL, NULL);
+    (6, 'jane', 5, '{morning,evening}',  '1 capsule',  'daily', '2026-02-15', NULL, NULL,          NULL, NULL);
 
 -- Supplements: John
 -- Health priorities: cardiovascular health, joint/back health, muscle recovery, sleep
 INSERT INTO supplement.log
-    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
+    (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, end_reason, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
     -- Omega-3 Fish Oil: cardiovascular and joint support
-    (7,  'john', 7, '{morning}',          '2 softgels', 'daily', '2025-08-01', NULL,          NULL, NULL),
+    (7,  'john', 7, '{morning}',          '2 softgels', 'daily', '2025-08-01', NULL, NULL,          NULL, NULL),
     -- Magnesium Glycinate: original dose (ended, replaced by id=9)
-    (8,  'john', 4, '{evening}',          '1 capsule',  'daily', '2025-07-15', '2025-11-01',  NULL, NULL),
+    (8,  'john', 4, '{evening}',          '1 capsule',  'daily', '2025-07-15', '2025-11-01', 'replaced — dose increase for BP management',  NULL, NULL),
     -- Magnesium Glycinate: increased for BP management (SCD Type 2)
-    (9,  'john', 4, '{evening}',          '2 capsules', 'daily', '2025-11-01', NULL,          8,    'BP readings averaging 138/87 over 3 months; increased magnesium per cardiologist advice to support BP management'),
+    (9,  'john', 4, '{evening}',          '2 capsules', 'daily', '2025-11-01', NULL, NULL,          8,    'BP readings averaging 138/87 over 3 months; increased magnesium per cardiologist advice to support BP management'),
     -- CoQ10: cardiovascular health
-    (10, 'john', 9, '{morning}',          '1 capsule',  'daily', '2025-09-01', NULL,          NULL, NULL),
+    (10, 'john', 9, '{morning}',          '1 capsule',  'daily', '2025-09-01', NULL, NULL,          NULL, NULL),
     -- Creatine Monohydrate: muscle recovery (8 weeks on, 4 weeks off)
-    (11, 'john', 10, '{any}',             '1 scoop',    'daily', '2025-06-01', NULL,          NULL, NULL),
+    (11, 'john', 10, '{any}',             '1 scoop',    'daily', '2025-06-01', NULL, NULL,          NULL, NULL),
     -- Glucosamine + Chondroitin: joint and back health (morning + evening split)
-    (12, 'john', 8, '{morning,evening}',  '1 capsule',  'daily', '2026-01-05', NULL,          NULL, NULL);
+    (12, 'john', 8, '{morning,evening}',  '1 capsule',  'daily', '2026-01-05', NULL, NULL,          NULL, NULL);
 
 -- Context: Jane
 INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
