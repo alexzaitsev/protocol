@@ -29,9 +29,11 @@ CREATE TABLE supplement.log (
   frequency text NOT NULL,
   started_at date NOT NULL DEFAULT CURRENT_DATE,
   ended_at date,
+  end_reason text,
   replaces_id integer REFERENCES supplement.log(id),
   replacement_reason text,
   CHECK (ended_at IS NULL OR ended_at >= started_at),
+  CHECK ((ended_at IS NULL AND end_reason IS NULL) OR (ended_at IS NOT NULL AND end_reason IS NOT NULL)),
   CHECK ((replaces_id IS NULL AND replacement_reason IS NULL) OR (replaces_id IS NOT NULL AND replacement_reason IS NOT NULL))
 );
 
@@ -55,6 +57,59 @@ WHERE
   ended_at IS NULL;
 
 CREATE INDEX idx_log_inventory ON supplement.log(inventory_id);
+
+CREATE FUNCTION supplement.immutable_closed_row()
+  RETURNS TRIGGER
+  AS $$
+BEGIN
+  IF OLD.ended_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot modify a closed log entry';
+  END IF;
+  RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER immutable_closed
+  BEFORE UPDATE ON supplement.log
+  FOR EACH ROW
+  EXECUTE FUNCTION supplement.immutable_closed_row();
+
+CREATE FUNCTION supplement.require_replacement_chain()
+  RETURNS TRIGGER
+  AS $$
+BEGIN
+  IF NEW.replaces_id IS NOT NULL THEN
+    IF NOT EXISTS(
+      SELECT
+        1
+      FROM
+        supplement.log
+      WHERE
+        id = NEW.replaces_id
+        AND inventory_id = NEW.inventory_id
+        AND ended_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'replaces_id must reference a closed log entry for the same supplement';
+  END IF;
+ELSIF EXISTS(
+    SELECT
+      1
+    FROM
+      supplement.log
+    WHERE
+      user_id = NEW.user_id
+      AND inventory_id = NEW.inventory_id) THEN
+  RAISE EXCEPTION 'A log entry already exists for this supplement — replaces_id and replacement_reason are required';
+END IF;
+  RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER require_chain
+  BEFORE INSERT ON supplement.log
+  FOR EACH ROW
+  EXECUTE FUNCTION supplement.require_replacement_chain();
 
 CREATE TABLE supplement.context(
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
