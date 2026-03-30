@@ -193,19 +193,19 @@ VALUES
 
 -- Context: Jane
 INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
-    ('jane', 1, 'Iron optimization — address borderline ferritin (monitoring since mid-2025)'),
-    ('jane', 2, 'Vitamin C paired with iron to enhance non-heme absorption'),
-    ('jane', 3, 'Baseline vitamin D support'),
-    ('jane', 4, 'Magnesium for stress management and sleep quality improvement'),
-    ('jane', 5, 'Quercetin as natural antihistamine for seasonal allergy symptom reduction');
+    ('jane', 1, '{iron optimization,address borderline ferritin}'),
+    ('jane', 2, '{vitamin C paired with iron,enhance non-heme absorption}'),
+    ('jane', 3, '{baseline vitamin D support}'),
+    ('jane', 4, '{stress management,sleep quality improvement}'),
+    ('jane', 5, '{natural antihistamine,seasonal allergy symptom reduction}');
 
 -- Context: John
 INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
-    ('john', 4, 'Magnesium for blood pressure management and sleep quality'),
-    ('john', 7, 'Omega-3 for cardiovascular protection (family history) and joint anti-inflammatory support'),
-    ('john', 8, 'Glucosamine + chondroitin for joint and lower back health maintenance'),
-    ('john', 9, 'CoQ10 for cardiovascular health and cellular energy production'),
-    ('john', 10, 'Creatine for muscle recovery and strength maintenance');
+    ('john', 4, '{blood pressure management,sleep quality}'),
+    ('john', 7, '{cardiovascular protection,joint anti-inflammatory support}'),
+    ('john', 8, '{joint health maintenance,lower back health}'),
+    ('john', 9, '{cardiovascular health,cellular energy production}'),
+    ('john', 10, '{muscle recovery,strength maintenance}');
 
 -- Reset identity sequences after explicit ID inserts
 SELECT setval(pg_get_serial_sequence('supplement.inventory', 'id'), (SELECT MAX(id) FROM supplement.inventory));

@@ -42,7 +42,7 @@ CREATE TABLE supplement.context (
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id      TEXT NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
     inventory_id INTEGER NOT NULL REFERENCES supplement.inventory(id),
-    purpose      TEXT NOT NULL,
+    purpose      TEXT[] NOT NULL,
     UNIQUE (user_id, inventory_id)
 );
 
