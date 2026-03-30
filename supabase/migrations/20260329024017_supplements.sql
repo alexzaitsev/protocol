@@ -11,8 +11,7 @@ CREATE TABLE supplement.inventory(
   category text NOT NULL,
   form text NOT NULL,
   dosage_per_unit text NOT NULL,
-  features jsonb NOT NULL DEFAULT '[]'::jsonb CHECK
-    (jsonb_typeof(features) = 'array'),
+  features text[] NOT NULL DEFAULT '{}',
   url text,
   UNIQUE NULLS NOT DISTINCT (name, brand)
 );
@@ -25,8 +24,9 @@ CREATE TABLE supplement.supplements(
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
   inventory_id integer NOT NULL REFERENCES supplement.inventory(id),
-  time_blocks jsonb NOT NULL CHECK (time_blocks <@ '["morning", "lunch", "evening", "any"]'::jsonb AND
-    jsonb_array_length(time_blocks) > 0),
+  time_blocks text[] NOT NULL CHECK (time_blocks <@ ARRAY['morning',
+    'lunch', 'evening', 'any'] AND
+    array_length(time_blocks, 1) > 0),
   dosage text NOT NULL,
   frequency text NOT NULL,
   started_at date NOT NULL DEFAULT CURRENT_DATE,
@@ -38,12 +38,12 @@ CREATE TABLE supplement.supplements(
 
 GRANT SELECT, INSERT, UPDATE ON supplement.supplements TO app_user;
 
-CREATE TABLE supplement.context (
-    id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id      TEXT NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
-    inventory_id INTEGER NOT NULL REFERENCES supplement.inventory(id),
-    purpose      TEXT[] NOT NULL,
-    UNIQUE (user_id, inventory_id)
+CREATE TABLE supplement.context(
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
+  inventory_id integer NOT NULL REFERENCES supplement.inventory(id),
+  purpose text[] NOT NULL,
+  UNIQUE (user_id, inventory_id)
 );
 
 GRANT SELECT, INSERT, UPDATE ON supplement.context TO app_user;
@@ -51,9 +51,9 @@ GRANT SELECT, INSERT, UPDATE ON supplement.context TO app_user;
 ALTER TABLE supplement.context ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY user_isolation ON supplement.context
-    FOR ALL
-    USING (user_id = current_setting('app.current_user_id', true))
-    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+  FOR ALL
+    USING (user_id = current_setting('app.current_user_id', TRUE))
+    WITH CHECK (user_id = current_setting('app.current_user_id', TRUE));
 
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA supplement TO app_user;
 
