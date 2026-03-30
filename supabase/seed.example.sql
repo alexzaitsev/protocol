@@ -155,7 +155,7 @@ VALUES
 
 -- Supplements: Jane
 -- Health priorities: iron optimization, diabetes prevention, stress/sleep, allergy reduction
-INSERT INTO supplement.supplements
+INSERT INTO supplement.log
     (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
@@ -174,7 +174,7 @@ VALUES
 
 -- Supplements: John
 -- Health priorities: cardiovascular health, joint/back health, muscle recovery, sleep
-INSERT INTO supplement.supplements
+INSERT INTO supplement.log
     (id, user_id, inventory_id, time_blocks, dosage, frequency, started_at, ended_at, replaces_id, replacement_reason)
 OVERRIDING SYSTEM VALUE
 VALUES
@@ -209,5 +209,5 @@ INSERT INTO supplement.context (user_id, inventory_id, purpose) VALUES
 
 -- Reset identity sequences after explicit ID inserts
 SELECT setval(pg_get_serial_sequence('supplement.inventory', 'id'), (SELECT MAX(id) FROM supplement.inventory));
-SELECT setval(pg_get_serial_sequence('supplement.supplements', 'id'), (SELECT MAX(id) FROM supplement.supplements));
+SELECT setval(pg_get_serial_sequence('supplement.log', 'id'), (SELECT MAX(id) FROM supplement.log));
 SELECT setval(pg_get_serial_sequence('supplement.context', 'id'), (SELECT MAX(id) FROM supplement.context));

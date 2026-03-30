@@ -13,14 +13,14 @@ CREATE TABLE supplement.inventory(
   dosage_per_unit text NOT NULL,
   features text[] NOT NULL DEFAULT '{}',
   url text,
-  UNIQUE NULLS NOT DISTINCT (name, brand)
+  UNIQUE (name, brand)
 );
 
 GRANT SELECT, INSERT, UPDATE ON supplement.inventory TO app_user;
 
 CREATE INDEX idx_inventory_name_lower ON supplement.inventory(lower(name));
 
-CREATE TABLE supplement.supplements(
+CREATE TABLE supplement.log (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
   inventory_id integer NOT NULL REFERENCES supplement.inventory(id),
@@ -31,18 +31,39 @@ CREATE TABLE supplement.supplements(
   frequency text NOT NULL,
   started_at date NOT NULL DEFAULT CURRENT_DATE,
   ended_at date,
-  replaces_id integer REFERENCES supplement.supplements(id),
+  replaces_id integer REFERENCES supplement.log(id),
   replacement_reason text,
-  CHECK (ended_at IS NULL OR ended_at >= started_at)
+  CHECK (ended_at IS NULL OR ended_at >= started_at),
+  CHECK ((replaces_id IS NULL AND replacement_reason IS NULL) OR (replaces_id
+    IS NOT NULL AND replacement_reason IS NOT NULL))
 );
 
-GRANT SELECT, INSERT, UPDATE ON supplement.supplements TO app_user;
+GRANT SELECT, INSERT, UPDATE ON supplement.log TO app_user;
+
+ALTER TABLE supplement.log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY user_isolation ON supplement.log
+  FOR ALL
+    USING (user_id = current_setting('app.current_user_id', TRUE))
+    WITH CHECK (user_id = current_setting('app.current_user_id', TRUE));
+
+CREATE INDEX idx_log_user_active ON supplement.log(user_id, ended_at);
+
+CREATE INDEX idx_log_replaces ON supplement.log(replaces_id)
+WHERE
+  replaces_id IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_log_one_active ON supplement.log(user_id, inventory_id)
+WHERE
+  ended_at IS NULL;
+
+CREATE INDEX idx_log_inventory ON supplement.log(inventory_id);
 
 CREATE TABLE supplement.context(
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
   inventory_id integer NOT NULL REFERENCES supplement.inventory(id),
-  purpose text[] NOT NULL,
+  purpose text[] NOT NULL CHECK (array_length(purpose, 1) > 0),
   UNIQUE (user_id, inventory_id)
 );
 
@@ -56,21 +77,3 @@ CREATE POLICY user_isolation ON supplement.context
     WITH CHECK (user_id = current_setting('app.current_user_id', TRUE));
 
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA supplement TO app_user;
-
-ALTER TABLE supplement.supplements ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY user_isolation ON supplement.supplements
-  FOR ALL
-    USING (user_id = current_setting('app.current_user_id', TRUE))
-    WITH CHECK (user_id = current_setting('app.current_user_id', TRUE));
-
-CREATE INDEX idx_supplements_user_active ON supplement.supplements(user_id, ended_at);
-
-CREATE INDEX idx_supplements_replaces ON supplement.supplements(replaces_id)
-WHERE
-  replaces_id IS NOT NULL;
-
-CREATE UNIQUE INDEX idx_supplements_one_active ON
-  supplement.supplements(user_id, inventory_id)
-WHERE
-  ended_at IS NULL;
