@@ -76,4 +76,6 @@ CREATE POLICY user_isolation ON supplement.context
     USING (user_id = current_setting('app.current_user_id', TRUE))
     WITH CHECK (user_id = current_setting('app.current_user_id', TRUE));
 
+CREATE INDEX idx_context_inventory ON supplement.context(inventory_id);
+
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA supplement TO app_user;
