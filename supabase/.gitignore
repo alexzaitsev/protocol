@@ -4,6 +4,8 @@
 
 # Seed data
 seed.sql
+seed.*.sql
+!seed.example.sql
 
 # dotenvx
 .env.keys
