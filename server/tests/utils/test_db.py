@@ -3,7 +3,7 @@
 
 from pydantic import BaseModel
 
-from utils.db import build_update, dump_models
+from utils.db import build_update, build_update_where, dump_models
 
 
 class Condition(BaseModel):
@@ -49,6 +49,37 @@ class TestBuildUpdate:
     def test_all_none_returns_empty(self):
         query, args = build_update(
             "person.preferences", {"location": None, "language": None}
+        )
+        assert query == ""
+        assert args == []
+
+
+class TestBuildUpdateWhere:
+    def test_single_field(self):
+        query, args = build_update_where(
+            "supplements.inventory", {"name": "Mag"}, where={"id": 1}
+        )
+        assert query == (
+            "UPDATE supplements.inventory SET name = $1 WHERE id = $2 RETURNING *"
+        )
+        assert args == ["Mag", 1]
+
+    def test_multiple_fields(self):
+        query, args = build_update_where(
+            "supplements.inventory",
+            {"name": "Mag", "brand": "NOW"},
+            where={"id": 5},
+        )
+        assert query == (
+            "UPDATE supplements.inventory"
+            " SET name = $1, brand = $2"
+            " WHERE id = $3 RETURNING *"
+        )
+        assert args == ["Mag", "NOW", 5]
+
+    def test_all_none_returns_empty(self):
+        query, args = build_update_where(
+            "supplements.inventory", {"name": None}, where={"id": 1}
         )
         assert query == ""
         assert args == []
