@@ -92,6 +92,13 @@ async def fetchrow(query: str, *args: object) -> asyncpg.Record | None:
         return await conn.fetchrow(query, *args)
 
 
+async def fetch(query: str, *args: object) -> list[asyncpg.Record]:
+    """Execute a query and return all rows."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(query, *args)
+
+
 @asynccontextmanager
 async def rls_connection() -> AsyncIterator[asyncpg.Connection]:
     pool = await get_pool()

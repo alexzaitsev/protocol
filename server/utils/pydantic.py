@@ -45,7 +45,13 @@ def _format_field(annotation: Any, optional: bool) -> str:
     return f"{prefix}{_type_name(annotation)}"
 
 
-_PLURAL = {"str": "strings", "int": "ints", "float": "floats", "bool": "bools", "date": "dates"}
+_PLURAL = {
+    "str": "strings",
+    "int": "ints",
+    "float": "floats",
+    "bool": "bools",
+    "date": "dates",
+}
 
 
 def _type_name(t: Any, *, plural: bool = False) -> str:
