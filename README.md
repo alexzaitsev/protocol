@@ -301,6 +301,7 @@ Open new chat in your project and test it.
 ### Requirements
 
 - [Python 3.14+](https://www.python.org/) with [uv](https://docs.astral.sh/uv/)
+- [Docker](https://www.docker.com/) — required for integration tests (testcontainers)
 - [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) — `brew install supabase/tap/supabase`
 - Google Cloud OAuth client configured with localhost redirect URIs (see [Google Cloud](#google-cloud) prerequisites)
 
