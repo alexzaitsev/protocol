@@ -7,7 +7,7 @@ from enum import StrEnum
 
 import asyncpg
 from app import mcp
-from data.db import fetch, fetchrow_rls
+from data.db import fetch, fetch_rls, fetchrow_rls
 from pydantic import BaseModel, Field
 from utils.pydantic import describe_schema
 
@@ -105,8 +105,62 @@ async def lookup_inventory(
         """,
         query,
     )
-    items = [InventoryItem(**dict(r)).model_dump() for r in rows]
+    items = [InventoryItem(**dict(r)).model_dump(mode="json") for r in rows]
     return json.dumps(items)
+
+
+@mcp.tool(
+    name="get_supplement_protocol",
+    description=(
+        "Get all active supplements the user is currently taking — the full protocol. "
+        "Returns dosing schedules, inventory details, and purpose for each supplement. "
+        "Ordered by time-block priority (any > morning > lunch > evening), then by name. "
+        "Returns [] if no active supplements.\n"
+        "Returns array of items.\n"
+        f"{describe_schema(JournalEntry)}"
+    ),
+)
+async def get_supplement_protocol() -> str:
+    rows = await fetch_rls(
+        """
+        SELECT
+          j.id,
+          j.inventory_id,
+          j.time_blocks,
+          j.dosage,
+          j.frequency,
+          j.started_at,
+          j.replaces_id,
+          j.replacement_reason,
+          j.ended_at,
+          j.end_reason,
+          i.name AS inv_name,
+          i.brand,
+          i.category,
+          i.form,
+          i.dosage_per_unit,
+          i.features,
+          i.url,
+          c.purpose
+        FROM
+          supplements.journal j
+          JOIN supplements.inventory i ON i.id = j.inventory_id
+          LEFT JOIN supplements.context c ON c.inventory_id = j.inventory_id
+            AND c.user_id = j.user_id
+        WHERE
+          j.ended_at IS NULL
+        ORDER BY
+          CASE
+            WHEN 'any' = ANY (j.time_blocks) THEN 0
+            WHEN 'morning' = ANY (j.time_blocks) THEN 1
+            WHEN 'lunch' = ANY (j.time_blocks) THEN 2
+            WHEN 'evening' = ANY (j.time_blocks) THEN 3
+          END,
+          i.name
+        """
+    )
+    entries = [_build_journal_entry(row) for row in rows]
+    return json.dumps([e.model_dump(mode="json") for e in entries])
 
 
 @mcp.tool(
