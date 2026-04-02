@@ -215,3 +215,54 @@ async def get_supplement(
     if row is None:
         return json.dumps({"error": "no supplement found for this inventory_id"})
     return _build_journal_entry(row).model_dump_json()
+
+
+@mcp.tool(
+    name="get_supplement_history",
+    description=(
+        "Get the full change history for a supplement by inventory_id. "
+        "Returns all journal entries in chronological order (oldest first), "
+        "including ended entries and their replacement chains via replaces_id. "
+        "Does not include purpose — history tracks regimen changes only. "
+        "Returns [] if no entries found.\n"
+        "Returns array of items.\n"
+        f"{describe_schema(JournalEntry)}"
+    ),
+)
+async def get_supplement_history(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+) -> str:
+    rows = await fetch_rls(
+        """
+        SELECT
+          j.id,
+          j.inventory_id,
+          j.time_blocks,
+          j.dosage,
+          j.frequency,
+          j.started_at,
+          j.replaces_id,
+          j.replacement_reason,
+          j.ended_at,
+          j.end_reason,
+          i.name AS inv_name,
+          i.brand,
+          i.category,
+          i.form,
+          i.dosage_per_unit,
+          i.features,
+          i.url
+        FROM
+          supplements.journal j
+          JOIN supplements.inventory i ON i.id = j.inventory_id
+        WHERE
+          j.inventory_id = $1
+        ORDER BY
+          j.started_at
+        """,
+        inventory_id,
+    )
+    entries = [_build_journal_entry(row) for row in rows]
+    return json.dumps([e.model_dump(mode="json") for e in entries])
