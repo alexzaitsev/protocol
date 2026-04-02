@@ -9,6 +9,7 @@ import asyncpg
 from app import mcp
 from data.db import fetch, fetch_rls, fetchrow_rls
 from pydantic import BaseModel, Field
+from utils.mcp_annotations import READ
 from utils.pydantic import describe_schema
 
 
@@ -78,6 +79,7 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
 
 @mcp.tool(
     name="lookup_inventory",
+    annotations=READ,
     description=(
         "Search the shared supplement inventory by name or brand (case-insensitive). "
         "Returns matching items with IDs. Use this to resolve inventory_id for operations that require it. "
@@ -111,6 +113,7 @@ async def lookup_inventory(
 
 @mcp.tool(
     name="get_supplement_protocol",
+    annotations=READ,
     description=(
         "Get all active supplements the user is currently taking — the full protocol. "
         "Returns dosing schedules, inventory details, and purpose for each supplement. "
@@ -165,6 +168,7 @@ async def get_supplement_protocol() -> str:
 
 @mcp.tool(
     name="get_supplement",
+    annotations=READ,
     description=(
         "Get the current supplement entry by inventory_id. "
         "Returns the active entry, or the most recently ended if none active. "
@@ -219,6 +223,7 @@ async def get_supplement(
 
 @mcp.tool(
     name="get_supplement_history",
+    annotations=READ,
     description=(
         "Get the full change history for a supplement by inventory_id. "
         "Returns all journal entries in chronological order (oldest first), "
