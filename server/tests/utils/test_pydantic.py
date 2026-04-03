@@ -4,14 +4,7 @@
 import json
 
 from pydantic import BaseModel, Field
-
-from utils.pydantic import (
-    _model_shape,
-    _type_name,
-    _unwrap_optional,
-    deref_schema,
-    describe_schema,
-)
+from utils.pydantic import _type_name, _unwrap_optional, deref_schema, describe_schema
 
 # ── Test models ──────────────────────────────────────────────────────
 
@@ -63,11 +56,12 @@ class TestDescribeSchema:
 
     def test_nested_model(self):
         result = describe_schema(Nested)
-        assert "- tag: {name}" in result
+        assert "- tag: Tag" in result
+        assert "  - name: str" in result
 
     def test_list_of_models(self):
         result = describe_schema(Nested)
-        assert "- tags: [{name}]" in result
+        assert "- tags: list of Tags" in result
 
     def test_list_of_scalars(self):
         result = describe_schema(WithScalarList)
@@ -131,14 +125,3 @@ class TestTypeName:
 
     def test_plural_unknown(self):
         assert _type_name(Tag, plural=True) == "Tags"
-
-
-class TestModelShape:
-    def test_simple_shape(self):
-        assert _model_shape(Simple) == "{name, age}"
-
-    def test_optional_marker(self):
-        shape = _model_shape(WithOptional)
-        assert "notes?" in shape
-        assert "title" in shape
-        assert "title?" not in shape

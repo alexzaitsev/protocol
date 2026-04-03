@@ -11,13 +11,22 @@ from pydantic import BaseModel
 def describe_schema(model: type[BaseModel]) -> str:
     """One-line-per-field schema description for LLM resource descriptions."""
     lines = ["Fields:"]
+    _append_fields(lines, model, indent=1)
+    return "\n".join(lines)
+
+
+def _append_fields(lines: list[str], model: type[BaseModel], indent: int) -> None:
+    """Recursively append field descriptions with indentation."""
+    prefix = "  " * (indent - 1)
     for name, field_info in model.model_fields.items():
         annotation = field_info.annotation
         optional, annotation = _unwrap_optional(annotation)
         type_str = _format_field(annotation, optional)
         desc = f" — {field_info.description}" if field_info.description else ""
-        lines.append(f"- {name}: {type_str}{desc}")
-    return "\n".join(lines)
+        lines.append(f"{prefix}- {name}: {type_str}{desc}")
+        nested = _nested_model(annotation)
+        if nested is not None:
+            _append_fields(lines, nested, indent + 1)
 
 
 def _unwrap_optional(annotation: Any) -> tuple[bool, Any]:
@@ -35,17 +44,29 @@ def _format_field(annotation: Any, optional: bool) -> str:
 
     if origin is list:
         (inner,) = get_args(annotation)
-        if isinstance(inner, type) and issubclass(inner, BaseModel):
-            return f"{prefix}[{_model_shape(inner)}]"
         return f"{prefix}list of {_type_name(inner, plural=True)}"
-
-    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-        return f"{prefix}{_model_shape(annotation)}"
 
     return f"{prefix}{_type_name(annotation)}"
 
 
-_PLURAL = {"str": "strings", "int": "ints", "float": "floats", "bool": "bools", "date": "dates"}
+def _nested_model(annotation: Any) -> type[BaseModel] | None:
+    """Extract BaseModel subclass from annotation, if present."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    if get_origin(annotation) is list:
+        (inner,) = get_args(annotation)
+        if isinstance(inner, type) and issubclass(inner, BaseModel):
+            return inner
+    return None
+
+
+_PLURAL = {
+    "str": "strings",
+    "int": "ints",
+    "float": "floats",
+    "bool": "bools",
+    "date": "dates",
+}
 
 
 def _type_name(t: Any, *, plural: bool = False) -> str:
@@ -55,15 +76,6 @@ def _type_name(t: Any, *, plural: bool = False) -> str:
             return _PLURAL.get(name, f"{name}s")
         return name
     return str(t)
-
-
-def _model_shape(model: type[BaseModel]) -> str:
-    """Condition -> {name, status, notes?}"""
-    parts = []
-    for name, field_info in model.model_fields.items():
-        optional, _ = _unwrap_optional(field_info.annotation)
-        parts.append(f"{name}?" if optional else name)
-    return "{" + ", ".join(parts) + "}"
 
 
 def deref_schema(model: type[BaseModel]) -> str:

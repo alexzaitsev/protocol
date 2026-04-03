@@ -12,9 +12,15 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=0.25",
+    "testcontainers[postgres]>=4.10",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 pythonpath = ["."]
+markers = [
+    "integration: tests requiring a database container",
+]

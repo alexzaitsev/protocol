@@ -8,6 +8,7 @@ from app import mcp
 from data.db import fetchrow_rls
 from pydantic import BaseModel, Field
 from utils.db import build_update, dump_models
+from utils.mcp_annotations import READ, WRITE
 from utils.pydantic import describe_schema
 
 
@@ -92,7 +93,9 @@ async def user_profile() -> str:
     return UserProfile(**dict(row)).model_dump_json()
 
 
-@mcp.tool(name="get_user_profile", description=_tool_desc(PROFILE_DESC))
+@mcp.tool(
+    name="get_user_profile", annotations=READ, description=_tool_desc(PROFILE_DESC)
+)
 async def get_user_profile() -> str:
     return await user_profile()
 
@@ -120,13 +123,18 @@ async def user_health_profile() -> str:
     return UserHealthProfile(**dict(row)).model_dump_json()
 
 
-@mcp.tool(name="get_user_health_profile", description=_tool_desc(HEALTH_PROFILE_DESC))
+@mcp.tool(
+    name="get_user_health_profile",
+    annotations=READ,
+    description=_tool_desc(HEALTH_PROFILE_DESC),
+)
 async def get_user_health_profile() -> str:
     return await user_health_profile()
 
 
 @mcp.tool(
     name="update_user_health_profile",
+    annotations=WRITE,
     description=(
         "Update the current user's health profile. "
         "Only provided fields are changed; omitted fields remain unchanged.\n"
@@ -186,13 +194,18 @@ async def user_preferences() -> str:
     return UserPreferences(**dict(row)).model_dump_json()
 
 
-@mcp.tool(name="get_user_preferences", description=_tool_desc(PREFERENCES_DESC))
+@mcp.tool(
+    name="get_user_preferences",
+    annotations=READ,
+    description=_tool_desc(PREFERENCES_DESC),
+)
 async def get_user_preferences() -> str:
     return await user_preferences()
 
 
 @mcp.tool(
     name="update_user_preferences",
+    annotations=WRITE,
     description=(
         "Update the current user's preferences. "
         "Only provided fields are changed; omitted fields remain unchanged.\n"

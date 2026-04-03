@@ -92,8 +92,15 @@ async def fetchrow(query: str, *args: object) -> asyncpg.Record | None:
         return await conn.fetchrow(query, *args)
 
 
+async def fetch(query: str, *args: object) -> list[asyncpg.Record]:
+    """Execute a query and return all rows."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(query, *args)
+
+
 @asynccontextmanager
-async def _rls_connection() -> AsyncIterator[asyncpg.Connection]:
+async def rls_connection() -> AsyncIterator[asyncpg.Connection]:
     pool = await get_pool()
     user_id = await _get_user_id()
     async with pool.acquire() as conn:
@@ -107,17 +114,17 @@ async def _rls_connection() -> AsyncIterator[asyncpg.Connection]:
 
 async def execute_rls(query: str, *args: object) -> None:
     """Execute a query (INSERT, UPDATE, DELETE) within an RLS-scoped transaction."""
-    async with _rls_connection() as conn:
+    async with rls_connection() as conn:
         await conn.execute(query, *args)
 
 
 async def fetchrow_rls(query: str, *args: object) -> asyncpg.Record | None:
     """Execute a query within an RLS-scoped transaction and return one row."""
-    async with _rls_connection() as conn:
+    async with rls_connection() as conn:
         return await conn.fetchrow(query, *args)
 
 
 async def fetch_rls(query: str, *args: object) -> list[asyncpg.Record]:
     """Execute a query within an RLS-scoped transaction and return all rows."""
-    async with _rls_connection() as conn:
+    async with rls_connection() as conn:
         return await conn.fetch(query, *args)
