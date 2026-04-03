@@ -64,6 +64,12 @@ class UserPreferences(BaseModel):
     communication: str | None = Field(description="communication style preferences")
 
 
+class UserContext(BaseModel):
+    profile: UserProfile
+    health_profile: UserHealthProfile
+    preferences: UserPreferences
+
+
 USER_ERROR = json.dumps({"error": "user not found"})
 
 
@@ -237,3 +243,86 @@ async def update_user_preferences(
     if row is None:
         return USER_ERROR
     return UserPreferences(**dict(row)).model_dump_json()
+
+
+# ---------------------------------------------------------------------------
+# Context
+# ---------------------------------------------------------------------------
+
+CONTEXT_DESC = (
+    "Full user context: demographics, health profile, and preferences in one call.\n"
+    f"{describe_schema(UserContext)}"
+)
+
+_CONTEXT_QUERY = """
+SELECT
+  u.display_name,
+  u.sex,
+  u.date_of_birth,
+  h.conditions,
+  h.family_history,
+  h.substances,
+  h.diet_notes,
+  h.activity_notes,
+  h.safety_checks,
+  h.methodology_notes,
+  h.health_priorities,
+  p.location,
+  p.occupation,
+  p.language,
+  p.units,
+  p.currency,
+  p.date_format,
+  p.communication
+FROM
+  person.users u
+  INNER JOIN person.health_profiles h ON h.user_id = u.id
+  INNER JOIN person.preferences p ON p.user_id = u.id
+"""
+
+
+@mcp.tool(
+    name="get_user_context",
+    annotations=READ,
+    description=_tool_desc(CONTEXT_DESC),
+)
+async def get_user_context() -> str:
+    row = await fetchrow_rls(_CONTEXT_QUERY)
+    if row is None:
+        return USER_ERROR
+    r = dict(row)
+    context = UserContext(
+        profile=UserProfile(
+            **{k: r[k] for k in ("display_name", "sex", "date_of_birth")}
+        ),
+        health_profile=UserHealthProfile(
+            **{
+                k: r[k]
+                for k in (
+                    "conditions",
+                    "family_history",
+                    "substances",
+                    "diet_notes",
+                    "activity_notes",
+                    "safety_checks",
+                    "methodology_notes",
+                    "health_priorities",
+                )
+            }
+        ),
+        preferences=UserPreferences(
+            **{
+                k: r[k]
+                for k in (
+                    "location",
+                    "occupation",
+                    "language",
+                    "units",
+                    "currency",
+                    "date_format",
+                    "communication",
+                )
+            }
+        ),
+    )
+    return context.model_dump_json()
