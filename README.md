@@ -182,6 +182,14 @@ fly secrets set \
   --app <your-app-name>
 ```
 
+### Machine configuration
+
+`fly.toml` is pre-configured with `min_machines_running = 1` and `auto_stop_machines = 'suspend'`. This keeps one machine always running so there are no cold starts — the Anthropic MCP proxy has a short connection timeout, and a suspended machine takes 5–8 seconds to wake up, causing 502 errors before the server is ready.
+
+With a single shared-1x-256mb machine running 24/7, expect roughly $2–3/month. Use the [Fly.io pricing calculator](https://fly.io/calculator?m=0_0_0_0_0&f=c&a=no_none&b=sjc.1&r=shared_0_1_ord&t=10_100_5&u=0_1_100&g=1_shared_730_1_256_sjc_0_0) to estimate cost for your region and machine size.
+
+Fly.io waives monthly bills under $5, so this setup is effectively free.
+
 ### Create a deploy token
 
 Generate a token for GitHub Actions to deploy on your behalf:
