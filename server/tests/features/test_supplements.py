@@ -490,3 +490,126 @@ class TestUpdateInventory:
             inv_id,
         )
         assert row is not None
+
+
+_ADD_CONTEXT_QUERY = (
+    "INSERT INTO supplements.context (user_id, inventory_id, purpose)"
+    " VALUES (current_setting('app.current_user_id', true), $1, $2)"
+    " RETURNING *"
+)
+
+_UPDATE_CONTEXT_QUERY = (
+    "UPDATE supplements.context SET purpose = $1 WHERE inventory_id = $2 RETURNING *"
+)
+
+
+class TestAddContext:
+    async def test_creates_context_returns_row(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        row = await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["bone health"])
+        assert row is not None
+        assert row["inventory_id"] == inv_id
+        assert row["purpose"] == ["bone health"]
+        assert row["id"] is not None
+
+    async def test_multiple_purposes(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        row = await rls_conn.fetchrow(
+            _ADD_CONTEXT_QUERY, inv_id, ["bone health", "immune support", "mood"]
+        )
+        assert row["purpose"] == ["bone health", "immune support", "mood"]
+
+    async def test_duplicate_user_inventory_raises_unique_violation(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["bone health"])
+
+        with pytest.raises(asyncpg.UniqueViolationError):
+            await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["immune support"])
+
+    async def test_same_inventory_different_users_allowed(self, db_conn):
+        # db_conn is postgres superuser here — rls_conn not requested
+        inv_id = await _insert_inventory(db_conn, name="Vitamin D3")
+
+        user1, user2 = "ctx-user-1", "ctx-user-2"
+        await db_conn.execute(
+            "INSERT INTO person.users (id, google_email, display_name, sex, date_of_birth)"
+            " VALUES ($1, $2, $3, $4, $5)",
+            user1, "ctx1@example.com", "User", "m", date(2000, 1, 1),
+        )
+        await db_conn.execute(
+            "INSERT INTO person.users (id, google_email, display_name, sex, date_of_birth)"
+            " VALUES ($1, $2, $3, $4, $5)",
+            user2, "ctx2@example.com", "User", "m", date(2001, 1, 1),
+        )
+
+        await db_conn.execute("SET LOCAL ROLE app_user")
+        await db_conn.execute(
+            "SELECT set_config('app.current_user_id', $1, true)", user1
+        )
+        row1 = await db_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["bone health"])
+        assert row1 is not None
+
+        await db_conn.execute(
+            "SELECT set_config('app.current_user_id', $1, true)", user2
+        )
+        row2 = await db_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["immune support"])
+        assert row2 is not None
+        assert row2["purpose"] == ["immune support"]
+
+
+class TestUpdateSupplementContext:
+    async def test_updates_purpose(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_context(rls_conn, inv_id, ["bone health"])
+
+        row = await rls_conn.fetchrow(
+            _UPDATE_CONTEXT_QUERY, ["bone health", "immune support"], inv_id
+        )
+        assert row is not None
+        assert row["purpose"] == ["bone health", "immune support"]
+
+    async def test_replaces_full_purpose_list(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_context(rls_conn, inv_id, ["bone health", "mood"])
+
+        row = await rls_conn.fetchrow(_UPDATE_CONTEXT_QUERY, ["sleep"], inv_id)
+        assert row["purpose"] == ["sleep"]
+
+    async def test_no_context_returns_none(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        row = await rls_conn.fetchrow(_UPDATE_CONTEXT_QUERY, ["bone health"], inv_id)
+        assert row is None
+
+    async def test_rls_cannot_update_other_users_context(self, db_conn):
+        # db_conn is postgres superuser here — rls_conn not requested
+        inv_id = await _insert_inventory(db_conn, name="Vitamin D3")
+
+        user1, user2 = "ctx-rls-1", "ctx-rls-2"
+        await db_conn.execute(
+            "INSERT INTO person.users (id, google_email, display_name, sex, date_of_birth)"
+            " VALUES ($1, $2, $3, $4, $5)",
+            user1, "rls1@example.com", "User", "m", date(2000, 1, 1),
+        )
+        await db_conn.execute(
+            "INSERT INTO person.users (id, google_email, display_name, sex, date_of_birth)"
+            " VALUES ($1, $2, $3, $4, $5)",
+            user2, "rls2@example.com", "User", "m", date(2001, 1, 1),
+        )
+
+        # Insert context for user2 as superuser
+        await db_conn.execute(
+            "INSERT INTO supplements.context (user_id, inventory_id, purpose)"
+            " VALUES ($1, $2, $3)",
+            user2, inv_id, ["bone health"],
+        )
+
+        # Switch to app_user as user1 — UPDATE should not touch user2's row
+        await db_conn.execute("SET LOCAL ROLE app_user")
+        await db_conn.execute(
+            "SELECT set_config('app.current_user_id', $1, true)", user1
+        )
+        row = await db_conn.fetchrow(_UPDATE_CONTEXT_QUERY, ["mood"], inv_id)
+        assert row is None

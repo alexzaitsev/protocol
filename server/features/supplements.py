@@ -52,6 +52,14 @@ class JournalEntry(BaseModel):
     purpose: list[str] | None = None
 
 
+class Context(BaseModel):
+    id: int
+    inventory_id: int
+    purpose: list[str] = Field(
+        description="why the user takes this supplement, e.g. ['bone health', 'immune support']"
+    )
+
+
 def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
     r = dict(row)
     return JournalEntry(
@@ -206,7 +214,9 @@ async def update_inventory(
     )
     if journal_row is None:
         return json.dumps(
-            {"error": "no journal entries for this inventory_id — you can only update supplements you have taken"}
+            {
+                "error": "no journal entries for this inventory_id — you can only update supplements you have taken"
+            }
         )
     fields: dict[str, object] = {
         "name": name,
@@ -226,6 +236,83 @@ async def update_inventory(
     if row is None:
         return json.dumps({"error": "inventory item not found"})
     return InventoryItem(**dict(row)).model_dump_json()
+
+
+# ---------------------------------------------------------------------------
+# Context
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="add_context",
+    annotations=WRITE,
+    description=(
+        "Add purpose context for a supplement in the user's journal. "
+        "Each supplement can have one context entry per user — "
+        "use update_context to change an existing one.\n"
+        f"{describe_schema(Context)}"
+    ),
+)
+async def add_context(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    purpose: list[str] = Field(
+        description="why the user takes this supplement, e.g. ['bone health', 'immune support']"
+    ),
+) -> str:
+    try:
+        row = await fetchrow_rls(
+            """
+            INSERT INTO supplements.context (user_id, inventory_id, purpose)
+            VALUES (current_setting('app.current_user_id', true), $1, $2)
+            RETURNING *
+            """,
+            inventory_id,
+            purpose,
+        )
+    except asyncpg.UniqueViolationError:
+        return json.dumps(
+            {
+                "error": "context already exists for this supplement — use update_context to change it"
+            }
+        )
+    assert row is not None
+    return Context(**dict(row)).model_dump_json()
+
+
+@mcp.tool(
+    name="update_context",
+    annotations=WRITE,
+    description=(
+        "Update the purpose context for a supplement. "
+        "Replaces the full purpose list.\n"
+        f"{describe_schema(Context)}"
+    ),
+)
+async def update_context(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    purpose: list[str] = Field(
+        description="updated purpose list, e.g. ['bone health', 'immune support']"
+    ),
+) -> str:
+    row = await fetchrow_rls(
+        """
+        UPDATE supplements.context
+        SET purpose = $1
+        WHERE inventory_id = $2
+        RETURNING *
+        """,
+        purpose,
+        inventory_id,
+    )
+    if row is None:
+        return json.dumps(
+            {"error": "no context found for this supplement — use add_context first"}
+        )
+    return Context(**dict(row)).model_dump_json()
 
 
 # ---------------------------------------------------------------------------
