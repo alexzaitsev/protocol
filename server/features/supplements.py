@@ -7,7 +7,7 @@ from enum import StrEnum
 
 import asyncpg
 from app import mcp
-from data.db import fetch, fetch_rls, fetchrow, fetchrow_rls
+from data.db import fetch, fetch_rls, fetchrow, fetchrow_rls, rls_connection
 from pydantic import BaseModel, Field
 from utils.db import build_update_where
 from utils.mcp_annotations import READ, WRITE
@@ -485,3 +485,206 @@ async def get_supplement_history(
     )
     entries = [_build_journal_entry(row) for row in rows]
     return json.dumps([e.model_dump(mode="json") for e in entries])
+
+
+_JOURNAL_SELECT = """
+  ins.id,
+  ins.inventory_id,
+  ins.time_blocks,
+  ins.dosage,
+  ins.frequency,
+  ins.started_at,
+  ins.replaces_id,
+  ins.replacement_reason,
+  ins.ended_at,
+  ins.end_reason,
+  i.name AS inv_name,
+  i.brand,
+  i.category,
+  i.form,
+  i.dosage_per_unit,
+  i.features,
+  i.url
+"""
+
+
+@mcp.tool(
+    name="add_supplement",
+    annotations=WRITE,
+    description=(
+        "Add a supplement to the user's journal for the first time. "
+        "Inventory must exist — use lookup_inventory or add_inventory first. "
+        "If an active entry already exists for this supplement, use update_supplement_replace instead. "
+        "Context must exist before adding a supplement — use add_context first.\n"
+        f"{describe_schema(JournalEntry)}"
+    ),
+)
+async def add_supplement(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    time_blocks: list[TimeBlock] = Field(
+        description="when to take: morning, lunch, evening, any"
+    ),
+    dosage: str = Field(description="amount per dose, e.g. '2 capsules', '500 mg'"),
+    frequency: str = Field(
+        description="how often, e.g. 'daily', 'twice daily', 'with meals'"
+    ),
+    started_at: date | None = Field(
+        default=None, description="start date, defaults to today"
+    ),
+) -> str:
+    try:
+        row = await fetchrow_rls(
+            f"""
+            WITH inserted AS (
+              INSERT INTO supplements.journal (
+                user_id, inventory_id, time_blocks, dosage, frequency, started_at
+              )
+              VALUES (
+                current_setting('app.current_user_id', true),
+                $1, $2, $3, $4, COALESCE($5, CURRENT_DATE)
+              )
+              RETURNING *
+            )
+            SELECT
+              {_JOURNAL_SELECT}
+            FROM
+              inserted ins
+              JOIN supplements.inventory i ON i.id = ins.inventory_id
+            """,
+            inventory_id,
+            time_blocks,
+            dosage,
+            frequency,
+            started_at,
+        )
+    except asyncpg.ForeignKeyViolationError:
+        return json.dumps({"error": "inventory_id not found"})
+    except asyncpg.RaiseError as e:
+        return json.dumps({"error": str(e)})
+    assert row is not None
+    return _build_journal_entry(row).model_dump_json()
+
+
+@mcp.tool(
+    name="update_supplement_replace",
+    annotations=WRITE,
+    description=(
+        "Change how a supplement is taken (SCD Type 2). "
+        "Ends the current entry today and creates a new one linked via replaces_id. "
+        "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry. "
+        "replacement_reason is required and applied to both the closing entry and the new one.\n"
+        f"{describe_schema(JournalEntry)}"
+    ),
+)
+async def update_supplement_replace(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    replacement_reason: str = Field(
+        description="why the regimen is changing, e.g. 'dosage increase', 'timing change'"
+    ),
+    dosage: str | None = Field(
+        default=None, description="new dosage, or omit to keep current"
+    ),
+    frequency: str | None = Field(
+        default=None, description="new frequency, or omit to keep current"
+    ),
+    time_blocks: list[TimeBlock] | None = Field(
+        default=None, description="new time blocks, or omit to keep current"
+    ),
+) -> str:
+    try:
+        async with rls_connection() as conn:
+            old = await conn.fetchrow(
+                """
+                UPDATE supplements.journal
+                SET
+                  ended_at = CURRENT_DATE,
+                  end_reason = $1
+                WHERE
+                  inventory_id = $2
+                  AND ended_at IS NULL
+                RETURNING *
+                """,
+                replacement_reason,
+                inventory_id,
+            )
+            if old is None:
+                return json.dumps(
+                    {"error": "no active supplement found for this inventory_id"}
+                )
+            new_row = await conn.fetchrow(
+                f"""
+                WITH inserted AS (
+                  INSERT INTO supplements.journal (
+                    user_id, inventory_id, time_blocks, dosage, frequency,
+                    started_at, replaces_id, replacement_reason
+                  )
+                  VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7)
+                  RETURNING *
+                )
+                SELECT
+                  {_JOURNAL_SELECT}
+                FROM
+                  inserted ins
+                  JOIN supplements.inventory i ON i.id = ins.inventory_id
+                """,
+                old["user_id"],
+                inventory_id,
+                time_blocks if time_blocks is not None else old["time_blocks"],
+                dosage if dosage is not None else old["dosage"],
+                frequency if frequency is not None else old["frequency"],
+                old["id"],
+                replacement_reason,
+            )
+    except asyncpg.RaiseError as e:
+        return json.dumps({"error": str(e)})
+    assert new_row is not None
+    return _build_journal_entry(new_row).model_dump_json()
+
+
+@mcp.tool(
+    name="update_supplement_end",
+    annotations=WRITE,
+    description=(
+        "Stop taking a supplement — sets ended_at to today. "
+        "Use when permanently discontinuing without a replacement. "
+        "To switch to a different dose or timing, use update_supplement_replace instead.\n"
+        f"{describe_schema(JournalEntry)}"
+    ),
+)
+async def update_supplement_end(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    end_reason: str | None = Field(
+        default=None,
+        description="reason for stopping, e.g. 'course completed', 'side effects'",
+    ),
+) -> str:
+    row = await fetchrow_rls(
+        f"""
+        WITH updated AS (
+          UPDATE supplements.journal
+          SET
+            ended_at = CURRENT_DATE,
+            end_reason = $1
+          WHERE
+            inventory_id = $2
+            AND ended_at IS NULL
+          RETURNING *
+        )
+        SELECT
+          {_JOURNAL_SELECT}
+        FROM
+          updated ins
+          JOIN supplements.inventory i ON i.id = ins.inventory_id
+        """,
+        end_reason,
+        inventory_id,
+    )
+    if row is None:
+        return json.dumps({"error": "no active supplement found for this inventory_id"})
+    return _build_journal_entry(row).model_dump_json()
