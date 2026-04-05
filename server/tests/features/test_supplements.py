@@ -3,6 +3,7 @@
 
 from datetime import date
 
+import asyncpg
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -265,3 +266,227 @@ class TestGetSupplementHistory:
         rows = await rls_conn.fetch(HISTORY_QUERY, inv_a)
         assert len(rows) == 1
         assert rows[0]["inventory_id"] == inv_a
+
+
+_LOOKUP_QUERY = """
+SELECT
+  *
+FROM
+  supplements.inventory
+WHERE
+  name ILIKE '%' || $1 || '%'
+  OR brand ILIKE '%' || $1 || '%'
+ORDER BY
+  name
+"""
+
+_ADD_INVENTORY_QUERY = """
+INSERT INTO supplements.inventory (name, brand, category, form,
+  dosage_per_unit, features, url)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING *
+"""
+
+
+class TestLookupInventory:
+    async def test_match_by_name(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
+        await _insert_inventory(db_conn, name="Omega-3", brand="Nordic Naturals")
+
+        rows = await db_conn.fetch(_LOOKUP_QUERY, "vitamin")
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Vitamin D3"
+
+    async def test_match_by_brand(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
+        await _insert_inventory(db_conn, name="Omega-3", brand="Nordic Naturals")
+
+        rows = await db_conn.fetch(_LOOKUP_QUERY, "Nordic")
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Omega-3"
+
+    async def test_case_insensitive(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
+
+        rows = await db_conn.fetch(_LOOKUP_QUERY, "VITAMIN")
+        assert len(rows) == 1
+
+    async def test_partial_match(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3")
+        await _insert_inventory(db_conn, name="Vitamin C")
+
+        rows = await db_conn.fetch(_LOOKUP_QUERY, "Vitamin")
+        assert len(rows) == 2
+
+    async def test_no_matches_returns_empty(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3")
+
+        rows = await db_conn.fetch(_LOOKUP_QUERY, "nonexistent_xyz_abc")
+        assert rows == []
+
+
+class TestAddInventory:
+    async def test_creates_item_returns_id(self, db_conn):
+        row = await db_conn.fetchrow(
+            _ADD_INVENTORY_QUERY,
+            "Vitamin D3",
+            "Jamieson",
+            "vitamin",
+            "softgel",
+            "1000 IU",
+            [],
+            None,
+        )
+        assert row is not None
+        assert row["id"] is not None
+        assert row["name"] == "Vitamin D3"
+        assert row["brand"] == "Jamieson"
+        assert row["features"] == []
+        assert row["url"] is None
+
+    async def test_creates_item_with_features_and_url(self, db_conn):
+        row = await db_conn.fetchrow(
+            _ADD_INVENTORY_QUERY,
+            "Magnesium Glycinate",
+            "Pure Encapsulations",
+            "mineral",
+            "capsule",
+            "120 mg",
+            ["chelated", "gentle on stomach"],
+            "https://example.com/mag",
+        )
+        assert row is not None
+        assert row["features"] == ["chelated", "gentle on stomach"]
+        assert row["url"] == "https://example.com/mag"
+
+    async def test_duplicate_name_brand_raises_unique_violation(self, db_conn):
+        await db_conn.fetchrow(
+            _ADD_INVENTORY_QUERY,
+            "Vitamin D3",
+            "Jamieson",
+            "vitamin",
+            "softgel",
+            "1000 IU",
+            [],
+            None,
+        )
+        with pytest.raises(asyncpg.UniqueViolationError):
+            await db_conn.fetchrow(
+                _ADD_INVENTORY_QUERY,
+                "Vitamin D3",
+                "Jamieson",
+                "vitamin",
+                "tablet",
+                "2000 IU",
+                [],
+                None,
+            )
+
+    async def test_same_name_different_brand_allowed(self, db_conn):
+        await db_conn.fetchrow(
+            _ADD_INVENTORY_QUERY,
+            "Vitamin D3",
+            "Jamieson",
+            "vitamin",
+            "softgel",
+            "1000 IU",
+            [],
+            None,
+        )
+        row = await db_conn.fetchrow(
+            _ADD_INVENTORY_QUERY,
+            "Vitamin D3",
+            "Now Foods",
+            "vitamin",
+            "softgel",
+            "2000 IU",
+            [],
+            None,
+        )
+        assert row is not None
+        assert row["brand"] == "Now Foods"
+
+
+class TestUpdateInventory:
+    async def test_updates_single_field(self, db_conn):
+        inv_id = await _insert_inventory(db_conn, name="Vitamin D3")
+
+        row = await db_conn.fetchrow(
+            "UPDATE supplements.inventory SET url = $1 WHERE id = $2 RETURNING *",
+            "https://example.com",
+            inv_id,
+        )
+        assert row["url"] == "https://example.com"
+        assert row["name"] == "Vitamin D3"
+
+    async def test_updates_multiple_fields(self, db_conn):
+        inv_id = await _insert_inventory(
+            db_conn, name="Vitamin D3", form="softgel", dosage_per_unit="1000 IU"
+        )
+
+        row = await db_conn.fetchrow(
+            "UPDATE supplements.inventory"
+            " SET form = $1, dosage_per_unit = $2"
+            " WHERE id = $3 RETURNING *",
+            "capsule",
+            "2000 IU",
+            inv_id,
+        )
+        assert row["form"] == "capsule"
+        assert row["dosage_per_unit"] == "2000 IU"
+        assert row["name"] == "Vitamin D3"
+
+    async def test_nonexistent_id_returns_none(self, db_conn):
+        row = await db_conn.fetchrow(
+            "UPDATE supplements.inventory SET url = $1 WHERE id = $2 RETURNING *",
+            "https://example.com",
+            999999,
+        )
+        assert row is None
+
+    async def test_duplicate_name_brand_raises_unique_violation(self, db_conn):
+        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
+        inv_id = await _insert_inventory(db_conn, name="Vitamin C", brand="Jamieson")
+
+        with pytest.raises(asyncpg.UniqueViolationError):
+            await db_conn.fetchrow(
+                "UPDATE supplements.inventory"
+                " SET name = $1 WHERE id = $2 RETURNING *",
+                "Vitamin D3",
+                inv_id,
+            )
+
+    async def test_journal_guard_no_entry_blocks_update(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        row = await rls_conn.fetchrow(
+            "SELECT 1 FROM supplements.journal WHERE inventory_id = $1 LIMIT 1",
+            inv_id,
+        )
+        assert row is None
+
+    async def test_journal_guard_with_entry_allows_update(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_journal(rls_conn, inv_id, time_blocks=["morning"])
+
+        row = await rls_conn.fetchrow(
+            "SELECT 1 FROM supplements.journal WHERE inventory_id = $1 LIMIT 1",
+            inv_id,
+        )
+        assert row is not None
+
+    async def test_journal_guard_historical_entry_allows_update(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_journal(
+            rls_conn,
+            inv_id,
+            time_blocks=["morning"],
+            ended_at=date(2026, 3, 1),
+            end_reason="no longer needed",
+        )
+
+        row = await rls_conn.fetchrow(
+            "SELECT 1 FROM supplements.journal WHERE inventory_id = $1 LIMIT 1",
+            inv_id,
+        )
+        assert row is not None

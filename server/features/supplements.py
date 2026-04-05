@@ -7,9 +7,10 @@ from enum import StrEnum
 
 import asyncpg
 from app import mcp
-from data.db import fetch, fetch_rls, fetchrow_rls
+from data.db import fetch, fetch_rls, fetchrow, fetchrow_rls
 from pydantic import BaseModel, Field
-from utils.mcp_annotations import READ
+from utils.db import build_update_where
+from utils.mcp_annotations import READ, WRITE
 from utils.pydantic import describe_schema
 
 
@@ -77,6 +78,11 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
     )
 
 
+# ---------------------------------------------------------------------------
+# Inventory
+# ---------------------------------------------------------------------------
+
+
 @mcp.tool(
     name="lookup_inventory",
     annotations=READ,
@@ -109,6 +115,122 @@ async def lookup_inventory(
     )
     items = [InventoryItem(**dict(r)).model_dump(mode="json") for r in rows]
     return json.dumps(items)
+
+
+@mcp.tool(
+    name="add_inventory",
+    annotations=WRITE,
+    description=(
+        "Add a new supplement to the shared inventory catalog. "
+        "Use lookup_inventory first to avoid duplicates — inventory must be unique. "
+        "Returns the created item with its id.\n"
+        f"{describe_schema(InventoryItem)}"
+    ),
+)
+async def add_inventory(
+    name: str = Field(description="supplement name, e.g. 'Vitamin D3'"),
+    brand: str = Field(description="brand name, e.g. 'Jamieson'"),
+    category: str = Field(
+        description="e.g. vitamin, mineral, amino acid, fatty acid, fiber, probiotic"
+    ),
+    form: str = Field(description="e.g. capsule, tablet, powder, softgel, liquid drop"),
+    dosage_per_unit: str = Field(
+        description="amount per single unit/scoop, e.g. '1000 mg', '5 g', '10 billion CFU'"
+    ),
+    features: list[str] = Field(
+        default_factory=list,
+        description="notable product traits, e.g. 'timed release', 'micronized'",
+    ),
+    url: str | None = Field(default=None, description="product URL"),
+) -> str:
+    try:
+        row = await fetchrow(
+            """
+            INSERT INTO supplements.inventory (name, brand, category, form,
+              dosage_per_unit, features, url)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            name,
+            brand,
+            category,
+            form,
+            dosage_per_unit,
+            features,
+            url,
+        )
+    except asyncpg.UniqueViolationError:
+        return json.dumps(
+            {"error": "inventory item with this name and brand already exists"}
+        )
+    assert row is not None
+    return InventoryItem(**dict(row)).model_dump_json()
+
+
+@mcp.tool(
+    name="update_inventory",
+    annotations=WRITE,
+    description=(
+        "Update fields on a shared inventory item by inventory_id. "
+        "Only provided fields are changed; omitted fields remain unchanged.\n"
+        f"{describe_schema(InventoryItem)}"
+    ),
+)
+async def update_inventory(
+    inventory_id: int = Field(
+        description="inventory item ID, as returned by lookup_inventory"
+    ),
+    name: str | None = Field(default=None, description="supplement name"),
+    brand: str | None = Field(default=None, description="brand name"),
+    category: str | None = Field(
+        default=None,
+        description="e.g. vitamin, mineral, amino acid, fatty acid, fiber, probiotic",
+    ),
+    form: str | None = Field(
+        default=None,
+        description="e.g. capsule, tablet, powder, softgel, liquid drop",
+    ),
+    dosage_per_unit: str | None = Field(
+        default=None,
+        description="amount per single unit/scoop, e.g. '1000 mg', '5 g', '10 billion CFU'",
+    ),
+    features: list[str] | None = Field(
+        default=None,
+        description="notable product traits, e.g. 'timed release', 'micronized'",
+    ),
+    url: str | None = Field(default=None, description="product URL"),
+) -> str:
+    journal_row = await fetchrow_rls(
+        "SELECT 1 FROM supplements.journal WHERE inventory_id = $1 LIMIT 1",
+        inventory_id,
+    )
+    if journal_row is None:
+        return json.dumps(
+            {"error": "no journal entries for this inventory_id — you can only update supplements you have taken"}
+        )
+    fields: dict[str, object] = {
+        "name": name,
+        "brand": brand,
+        "category": category,
+        "form": form,
+        "dosage_per_unit": dosage_per_unit,
+        "features": features,
+        "url": url,
+    }
+    query, args = build_update_where(
+        "supplements.inventory", fields, {"id": inventory_id}
+    )
+    if not query:
+        return json.dumps({"error": "no fields provided"})
+    row = await fetchrow(query, *args)
+    if row is None:
+        return json.dumps({"error": "inventory item not found"})
+    return InventoryItem(**dict(row)).model_dump_json()
+
+
+# ---------------------------------------------------------------------------
+# Protocol
+# ---------------------------------------------------------------------------
 
 
 @mcp.tool(
@@ -164,6 +286,11 @@ async def get_supplement_protocol() -> str:
     )
     entries = [_build_journal_entry(row) for row in rows]
     return json.dumps([e.model_dump(mode="json") for e in entries])
+
+
+# ---------------------------------------------------------------------------
+# Supplement
+# ---------------------------------------------------------------------------
 
 
 @mcp.tool(
