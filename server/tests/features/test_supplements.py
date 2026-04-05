@@ -355,17 +355,9 @@ class TestGetSupplement:
         assert row is None
 
 
-_LOOKUP_QUERY = """
-SELECT
-  *
-FROM
-  supplements.inventory
-WHERE
-  name ILIKE '%' || $1 || '%'
-  OR brand ILIKE '%' || $1 || '%'
-ORDER BY
-  name
-"""
+_LIST_QUERY = "SELECT id, name, brand FROM supplements.inventory ORDER BY name"
+
+_GET_QUERY = "SELECT * FROM supplements.inventory WHERE id = $1"
 
 _ADD_INVENTORY_QUERY = """
 INSERT INTO supplements.inventory (name, brand, category, form,
@@ -375,41 +367,49 @@ RETURNING *
 """
 
 
-class TestLookupInventory:
-    async def test_match_by_name(self, db_conn):
-        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
-        await _insert_inventory(db_conn, name="Omega-3", brand="Nordic Naturals")
+class TestGetInventoryList:
+    async def test_returns_all_items(self, db_conn):
+        id1 = await _insert_inventory(db_conn, name="Magnesium Glycinate")
+        id2 = await _insert_inventory(db_conn, name="Vitamin D3")
 
-        rows = await db_conn.fetch(_LOOKUP_QUERY, "vitamin")
-        assert len(rows) == 1
-        assert rows[0]["name"] == "Vitamin D3"
+        rows = await db_conn.fetch(_LIST_QUERY)
+        ids = [r["id"] for r in rows]
+        assert id1 in ids
+        assert id2 in ids
 
-    async def test_match_by_brand(self, db_conn):
-        await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
-        await _insert_inventory(db_conn, name="Omega-3", brand="Nordic Naturals")
-
-        rows = await db_conn.fetch(_LOOKUP_QUERY, "Nordic")
-        assert len(rows) == 1
-        assert rows[0]["name"] == "Omega-3"
-
-    async def test_case_insensitive(self, db_conn):
+    async def test_returns_only_id_name_brand(self, db_conn):
         await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
 
-        rows = await db_conn.fetch(_LOOKUP_QUERY, "VITAMIN")
+        rows = await db_conn.fetch(_LIST_QUERY)
         assert len(rows) == 1
+        assert set(rows[0].keys()) == {"id", "name", "brand"}
 
-    async def test_partial_match(self, db_conn):
-        await _insert_inventory(db_conn, name="Vitamin D3")
-        await _insert_inventory(db_conn, name="Vitamin C")
-
-        rows = await db_conn.fetch(_LOOKUP_QUERY, "Vitamin")
-        assert len(rows) == 2
-
-    async def test_no_matches_returns_empty(self, db_conn):
+    async def test_ordered_by_name(self, db_conn):
+        await _insert_inventory(db_conn, name="Zinc")
+        await _insert_inventory(db_conn, name="Magnesium Glycinate")
         await _insert_inventory(db_conn, name="Vitamin D3")
 
-        rows = await db_conn.fetch(_LOOKUP_QUERY, "nonexistent_xyz_abc")
+        rows = await db_conn.fetch(_LIST_QUERY)
+        names = [r["name"] for r in rows]
+        assert names == sorted(names)
+
+    async def test_empty_when_no_items(self, db_conn):
+        rows = await db_conn.fetch(_LIST_QUERY)
         assert rows == []
+
+
+class TestGetInventory:
+    async def test_returns_full_item_by_id(self, db_conn):
+        inv_id = await _insert_inventory(db_conn, name="Vitamin D3", brand="Jamieson")
+
+        row = await db_conn.fetchrow(_GET_QUERY, inv_id)
+        assert row is not None
+        assert row["name"] == "Vitamin D3"
+        assert row["brand"] == "Jamieson"
+
+    async def test_returns_none_for_nonexistent_id(self, db_conn):
+        row = await db_conn.fetchrow(_GET_QUERY, 999999)
+        assert row is None
 
 
 class TestAddInventory:

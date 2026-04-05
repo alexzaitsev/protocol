@@ -31,6 +31,12 @@ class InventoryItem(BaseModel):
     url: str | None = Field(description="product URL")
 
 
+class InventoryListItem(BaseModel):
+    id: int
+    name: str
+    brand: str
+
+
 class TimeBlock(StrEnum):
     morning = "morning"
     lunch = "lunch"
@@ -92,37 +98,43 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
 
 
 @mcp.tool(
-    name="lookup_inventory",
+    name="get_inventory_list",
     annotations=READ,
     description=(
-        "Search the shared supplement inventory by name or brand (case-insensitive). "
-        "Returns matching items with IDs. Use this to resolve inventory_id for operations that require it. "
-        "Returns [] if no matches — try a shorter or alternative query.\n"
+        "Returns all items in the shared supplement inventory. "
+        "Use this to resolve inventory_id before any operation that requires it.\n"
         "Returns array of items.\n"
+        f"{describe_schema(InventoryListItem)}"
+    ),
+)
+async def get_inventory_list() -> str:
+    rows = await fetch(
+        "SELECT id, name, brand FROM supplements.inventory ORDER BY name"
+    )
+    return json.dumps(
+        [InventoryListItem(**dict(r)).model_dump(mode="json") for r in rows]
+    )
+
+
+@mcp.tool(
+    name="get_inventory",
+    annotations=READ,
+    description=(
+        "Get full details for a single inventory item by ID. "
+        "Use get_inventory_list to resolve the ID first.\n"
         f"{describe_schema(InventoryItem)}"
     ),
 )
-async def lookup_inventory(
-    query: str = Field(
-        description="search term matched against name and brand (e.g. 'D3', 'Jamieson')"
-    ),
+async def get_inventory(
+    inventory_id: int = Field(description="inventory item ID"),
 ) -> str:
-    rows = await fetch(
-        """
-        SELECT
-          *
-        FROM
-          supplements.inventory
-        WHERE
-          name ILIKE '%' || $1 || '%'
-          OR brand ILIKE '%' || $1 || '%'
-        ORDER BY
-          name
-        """,
-        query,
+    row = await fetchrow(
+        "SELECT * FROM supplements.inventory WHERE id = $1",
+        inventory_id,
     )
-    items = [InventoryItem(**dict(r)).model_dump(mode="json") for r in rows]
-    return json.dumps(items)
+    if row is None:
+        return json.dumps({"error": "inventory item not found"})
+    return InventoryItem(**dict(row)).model_dump_json()
 
 
 @mcp.tool(
@@ -130,7 +142,7 @@ async def lookup_inventory(
     annotations=WRITE,
     description=(
         "Add a new supplement to the shared inventory catalog. "
-        "Use lookup_inventory first to avoid duplicates — inventory must be unique. "
+        "Use get_inventory_list first to avoid duplicates — inventory must be unique. "
         "Returns the created item with its id.\n"
         f"{describe_schema(InventoryItem)}"
     ),
@@ -185,9 +197,7 @@ async def add_inventory(
     ),
 )
 async def update_inventory(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     name: str | None = Field(default=None, description="supplement name"),
     brand: str | None = Field(default=None, description="brand name"),
     category: str | None = Field(
@@ -254,9 +264,7 @@ async def update_inventory(
     ),
 )
 async def add_context(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     purpose: list[str] = Field(
         description="why the user takes this supplement, e.g. ['bone health', 'immune support']"
     ),
@@ -291,9 +299,7 @@ async def add_context(
     ),
 )
 async def update_context(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     purpose: list[str] = Field(
         description="updated purpose list, e.g. ['bone health', 'immune support']"
     ),
@@ -391,9 +397,7 @@ async def get_supplement_protocol() -> str:
     ),
 )
 async def get_supplement(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
 ) -> str:
     row = await fetchrow_rls(
         """
@@ -449,9 +453,7 @@ async def get_supplement(
     ),
 )
 async def get_supplement_history(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
 ) -> str:
     rows = await fetch_rls(
         """
@@ -513,16 +515,14 @@ _JOURNAL_SELECT = """
     annotations=WRITE,
     description=(
         "Add a supplement to the user's journal for the first time. "
-        "Inventory must exist — use lookup_inventory or add_inventory first. "
+        "Inventory must exist — use get_inventory_list or add_inventory first. "
         "If an active entry already exists for this supplement, use update_supplement_replace instead. "
         "Context must exist before adding a supplement — use add_context first.\n"
         f"{describe_schema(JournalEntry)}"
     ),
 )
 async def add_supplement(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     time_blocks: list[TimeBlock] = Field(
         description="when to take: morning, lunch, evening, any"
     ),
@@ -579,9 +579,7 @@ async def add_supplement(
     ),
 )
 async def update_supplement_replace(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     replacement_reason: str = Field(
         description="why the regimen is changing, e.g. 'dosage increase', 'timing change'"
     ),
@@ -656,9 +654,7 @@ async def update_supplement_replace(
     ),
 )
 async def update_supplement_end(
-    inventory_id: int = Field(
-        description="inventory item ID, as returned by lookup_inventory"
-    ),
+    inventory_id: int = Field(description="inventory item ID"),
     end_reason: str | None = Field(
         default=None,
         description="reason for stopping, e.g. 'course completed', 'side effects'",
