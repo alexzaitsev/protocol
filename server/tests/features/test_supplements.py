@@ -615,6 +615,12 @@ class TestAddContext:
         with pytest.raises(asyncpg.UniqueViolationError):
             await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["immune support"])
 
+    async def test_empty_purpose_raises_check_violation(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        with pytest.raises(asyncpg.CheckViolationError):
+            await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, [])
+
 
     async def test_same_inventory_different_users_allowed(self, db_conn):
         # db_conn is postgres superuser here — rls_conn not requested

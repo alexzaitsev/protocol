@@ -115,7 +115,7 @@ CREATE TABLE supplements.context(
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id text NOT NULL REFERENCES person.users(id) ON DELETE CASCADE,
   inventory_id integer NOT NULL REFERENCES supplements.inventory(id),
-  purpose text[] NOT NULL CHECK (array_length(purpose, 1) > 0),
+  purpose text[] NOT NULL CHECK (cardinality(purpose) > 0),
   UNIQUE (user_id, inventory_id)
 );
 
