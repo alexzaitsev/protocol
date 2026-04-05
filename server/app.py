@@ -1,15 +1,19 @@
 # Copyright 2026 Alex Zaitsev
 # SPDX-License-Identifier: AGPL-3.0-only
 
+import base64
+import json
 import os
 from contextlib import asynccontextmanager
 
 import asyncpg
-from data.db import close_pool, init_pool
+from data.db import close_pool, fetchrow, init_pool
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.google import GoogleProvider
 from key_value.aio.stores.postgresql import PostgreSQLStore
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+from mcp.server.auth.provider import AuthorizationCode, TokenError
+from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 
 class _SupabaseKVStore(PostgreSQLStore):
@@ -19,6 +23,38 @@ class _SupabaseKVStore(PostgreSQLStore):
         return await asyncpg.create_pool(
             self._url, statement_cache_size=0, min_size=1, max_size=2
         )
+
+
+class _AllowlistGoogleProvider(GoogleProvider):
+    """GoogleProvider that rejects token exchange for emails not in person.users."""
+
+    async def exchange_authorization_code(
+        self,
+        client: OAuthClientInformationFull,
+        authorization_code: AuthorizationCode,
+    ) -> OAuthToken:
+        code_model = await self._code_store.get(key=authorization_code.code)
+        if code_model is None:
+            raise TokenError("invalid_grant", "Authorization code not found")
+
+        try:
+            id_token = code_model.idp_tokens["id_token"]
+            payload_b64 = id_token.split(".")[1]
+            payload_b64 += "=" * (4 - len(payload_b64) % 4)
+            email = json.loads(base64.urlsafe_b64decode(payload_b64)).get("email")
+        except Exception:
+            raise TokenError("invalid_grant", "User not authorized")
+
+        if not email:
+            raise TokenError("invalid_grant", "User not authorized")
+
+        row = await fetchrow(
+            "SELECT id FROM person.users WHERE google_email = $1", email
+        )
+        if row is None:
+            raise TokenError("invalid_grant", "User not authorized")
+
+        return await super().exchange_authorization_code(client, authorization_code)
 
 
 @asynccontextmanager
@@ -38,7 +74,7 @@ oauth_store = FernetEncryptionWrapper(
     salt="protocol-oauth",
 )
 
-auth_provider = GoogleProvider(
+auth_provider = _AllowlistGoogleProvider(
     client_id=os.environ["GOOGLE_CLIENT_ID"],
     client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
     base_url=os.environ["MCP_SERVER_URL"] or "http://localhost:8000",
