@@ -268,6 +268,93 @@ class TestGetSupplementHistory:
         assert rows[0]["inventory_id"] == inv_a
 
 
+_GET_SUPPLEMENT_QUERY = """
+SELECT
+  j.id,
+  j.inventory_id,
+  j.time_blocks,
+  j.dosage,
+  j.frequency,
+  j.started_at,
+  j.replaces_id,
+  j.replacement_reason,
+  j.ended_at,
+  j.end_reason,
+  i.name AS inv_name,
+  i.brand,
+  i.category,
+  i.form,
+  i.dosage_per_unit,
+  i.features,
+  i.url,
+  c.purpose
+FROM
+  supplements.journal j
+  JOIN supplements.inventory i ON i.id = j.inventory_id
+  LEFT JOIN supplements.context c ON c.inventory_id = j.inventory_id
+    AND c.user_id = j.user_id
+WHERE
+  j.inventory_id = $1
+ORDER BY
+  j.ended_at IS NULL DESC,
+  j.ended_at DESC
+LIMIT 1
+"""
+
+
+class TestGetSupplement:
+    async def test_returns_active_entry(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_journal(rls_conn, inv_id, time_blocks=["morning"], dosage="1000 IU")
+        await _insert_context(rls_conn, inv_id, ["bone health"])
+
+        row = await rls_conn.fetchrow(_GET_SUPPLEMENT_QUERY, inv_id)
+        assert row is not None
+        assert row["inventory_id"] == inv_id
+        assert row["ended_at"] is None
+        assert row["dosage"] == "1000 IU"
+        assert row["purpose"] == ["bone health"]
+
+    async def test_returns_most_recent_ended_when_no_active(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        old = await _insert_journal(
+            rls_conn, inv_id, time_blocks=["morning"],
+            started_at=date(2026, 1, 1), ended_at=date(2026, 2, 1), end_reason="change",
+        )
+        await _insert_journal(
+            rls_conn, inv_id, time_blocks=["morning"],
+            started_at=date(2026, 2, 1), ended_at=date(2026, 3, 1), end_reason="stopped",
+            replaces_id=old["id"], replacement_reason="change",
+        )
+
+        row = await rls_conn.fetchrow(_GET_SUPPLEMENT_QUERY, inv_id)
+        assert row is not None
+        assert row["started_at"] == date(2026, 2, 1)
+        assert row["ended_at"] == date(2026, 3, 1)
+
+    async def test_active_preferred_over_ended(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        old = await _insert_journal(
+            rls_conn, inv_id, time_blocks=["morning"],
+            started_at=date(2026, 1, 1), ended_at=date(2026, 2, 1), end_reason="change",
+        )
+        await _insert_journal(
+            rls_conn, inv_id, time_blocks=["evening"],
+            started_at=date(2026, 2, 1),
+            replaces_id=old["id"], replacement_reason="timing change",
+        )
+
+        row = await rls_conn.fetchrow(_GET_SUPPLEMENT_QUERY, inv_id)
+        assert row["ended_at"] is None
+        assert row["time_blocks"] == ["evening"]
+
+    async def test_no_entries_returns_none(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+
+        row = await rls_conn.fetchrow(_GET_SUPPLEMENT_QUERY, inv_id)
+        assert row is None
+
+
 _LOOKUP_QUERY = """
 SELECT
   *
@@ -527,6 +614,7 @@ class TestAddContext:
 
         with pytest.raises(asyncpg.UniqueViolationError):
             await rls_conn.fetchrow(_ADD_CONTEXT_QUERY, inv_id, ["immune support"])
+
 
     async def test_same_inventory_different_users_allowed(self, db_conn):
         # db_conn is postgres superuser here — rls_conn not requested
@@ -855,6 +943,20 @@ class TestJournalTriggers:
             await _insert_journal(
                 rls_conn, inv_id, time_blocks=["evening"],
                 replaces_id=open_row["id"], replacement_reason="change",
+            )
+
+    async def test_insert_replaces_wrong_inventory_raises(self, rls_conn):
+        inv_a = await _insert_inventory(rls_conn, name="Vitamin D3")
+        inv_b = await _insert_inventory(rls_conn, name="Omega-3")
+        closed = await _insert_journal(
+            rls_conn, inv_a, time_blocks=["morning"],
+            ended_at=date(2026, 3, 1), end_reason="stopped",
+        )
+
+        with pytest.raises(asyncpg.exceptions.RaiseError):
+            await _insert_journal(
+                rls_conn, inv_b, time_blocks=["morning"],
+                replaces_id=closed["id"], replacement_reason="change",
             )
 
     async def test_update_closed_row_raises(self, rls_conn):
