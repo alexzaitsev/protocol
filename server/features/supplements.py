@@ -587,8 +587,7 @@ async def add_supplement(
     description=(
         "Change how a supplement is taken (SCD Type 2). "
         "Ends the current entry today and creates a new one linked via replaces_id. "
-        "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry. "
-        "replacement_reason is required and applied to both the closing entry and the new one.\n"
+        "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry.\n"
         f"{describe_schema(JournalEntry)}"
     ),
 )
@@ -613,14 +612,12 @@ async def update_supplement_replace(
                 """
                 UPDATE supplements.journal
                 SET
-                  ended_at = CURRENT_DATE,
-                  end_reason = $1
+                  ended_at = CURRENT_DATE
                 WHERE
-                  inventory_id = $2
+                  inventory_id = $1
                   AND ended_at IS NULL
                 RETURNING *
                 """,
-                replacement_reason,
                 inventory_id,
             )
             if old is None:
