@@ -514,10 +514,13 @@ _JOURNAL_SELECT = """
     name="add_supplement",
     annotations=WRITE,
     description=(
-        "Add a supplement to the user's journal for the first time. "
+        "Add a supplement to the user's journal. "
         "Inventory must exist — use get_inventory_list or add_inventory first. "
         "If an active entry already exists for this supplement, use update_supplement_replace instead. "
-        "Context must exist before adding a supplement — use add_context first.\n"
+        "Context must exist before adding a supplement — use add_context first. "
+        "If the supplement was previously taken and has a closed history entry, "
+        "replaces_id (id of the last closed entry) and replacement_reason are required — "
+        "use get_supplement_history to find the id.\n"
         f"{describe_schema(JournalEntry)}"
     ),
 )
@@ -533,17 +536,26 @@ async def add_supplement(
     started_at: date | None = Field(
         default=None, description="start date, defaults to today"
     ),
+    replaces_id: int | None = Field(
+        default=None,
+        description="id of the closed journal entry this reintroduces; required if supplement has prior history",
+    ),
+    replacement_reason: str | None = Field(
+        default=None,
+        description="why the supplement is being reintroduced; required when replaces_id is set",
+    ),
 ) -> str:
     try:
         row = await fetchrow_rls(
             f"""
             WITH inserted AS (
               INSERT INTO supplements.journal (
-                user_id, inventory_id, time_blocks, dosage, frequency, started_at
+                user_id, inventory_id, time_blocks, dosage, frequency, started_at,
+                replaces_id, replacement_reason
               )
               VALUES (
                 current_setting('app.current_user_id', true),
-                $1, $2, $3, $4, COALESCE($5, CURRENT_DATE)
+                $1, $2, $3, $4, COALESCE($5, CURRENT_DATE), $6, $7
               )
               RETURNING *
             )
@@ -558,6 +570,8 @@ async def add_supplement(
             dosage,
             frequency,
             started_at,
+            replaces_id,
+            replacement_reason,
         )
     except asyncpg.ForeignKeyViolationError:
         return json.dumps({"error": "inventory_id not found"})

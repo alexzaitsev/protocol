@@ -733,11 +733,12 @@ _JOURNAL_COLS = """
 _ADD_SUPPLEMENT_CTE = f"""
 WITH inserted AS (
   INSERT INTO supplements.journal (
-    user_id, inventory_id, time_blocks, dosage, frequency, started_at
+    user_id, inventory_id, time_blocks, dosage, frequency, started_at,
+    replaces_id, replacement_reason
   )
   VALUES (
     current_setting('app.current_user_id', true),
-    $1, $2, $3, $4, COALESCE($5, CURRENT_DATE)
+    $1, $2, $3, $4, COALESCE($5, CURRENT_DATE), $6, $7
   )
   RETURNING *
 )
@@ -778,7 +779,7 @@ class TestAddSupplement:
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
 
         row = await rls_conn.fetchrow(
-            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "2 capsules", "daily", None
+            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "2 capsules", "daily", None, None, None
         )
         assert row is not None
         assert row["inventory_id"] == inv_id
@@ -792,7 +793,7 @@ class TestAddSupplement:
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
 
         row = await rls_conn.fetchrow(
-            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "1 cap", "daily", None
+            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "1 cap", "daily", None, None, None
         )
         assert row["started_at"] is not None
 
@@ -800,14 +801,44 @@ class TestAddSupplement:
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
 
         row = await rls_conn.fetchrow(
-            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "1 cap", "daily", date(2026, 1, 15)
+            _ADD_SUPPLEMENT_CTE, inv_id, ["morning"], "1 cap", "daily", date(2026, 1, 15), None, None
         )
         assert row["started_at"] == date(2026, 1, 15)
 
     async def test_nonexistent_inventory_raises_fk_error(self, rls_conn):
         with pytest.raises(asyncpg.ForeignKeyViolationError):
             await rls_conn.fetchrow(
-                _ADD_SUPPLEMENT_CTE, 999999, ["morning"], "1 cap", "daily", None
+                _ADD_SUPPLEMENT_CTE, 999999, ["morning"], "1 cap", "daily", None, None, None
+            )
+
+    async def test_reintroduction_with_replaces_id(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Psyllium")
+        old = await _insert_journal(
+            rls_conn, inv_id, time_blocks=["lunch"], dosage="1/2 tsp",
+            started_at=date(2026, 1, 1), ended_at=date(2026, 3, 28),
+            end_reason="heartburn investigation",
+        )
+
+        row = await rls_conn.fetchrow(
+            _ADD_SUPPLEMENT_CTE, inv_id, ["lunch"], "1/4 tsp", "daily",
+            date(2026, 4, 6), old["id"], "reintroduction after heartburn suspension investigation",
+        )
+        assert row is not None
+        assert row["replaces_id"] == old["id"]
+        assert row["replacement_reason"] == "reintroduction after heartburn suspension investigation"
+        assert row["dosage"] == "1/4 tsp"
+        assert row["ended_at"] is None
+
+    async def test_reintroduction_without_replaces_id_raises(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Psyllium")
+        await _insert_journal(
+            rls_conn, inv_id, time_blocks=["lunch"],
+            ended_at=date(2026, 3, 28), end_reason="heartburn investigation",
+        )
+
+        with pytest.raises(asyncpg.exceptions.RaiseError):
+            await rls_conn.fetchrow(
+                _ADD_SUPPLEMENT_CTE, inv_id, ["lunch"], "1/4 tsp", "daily", None, None, None
             )
 
 
