@@ -100,7 +100,10 @@ async def user_profile() -> str:
 
 
 @mcp.tool(
-    name="get_user_profile", annotations=READ, description=_tool_desc(PROFILE_DESC)
+    name="get_user_profile",
+    title="Get User Profile",
+    annotations=READ,
+    description=_tool_desc(PROFILE_DESC),
 )
 async def get_user_profile() -> str:
     return await user_profile()
@@ -131,6 +134,7 @@ async def user_health_profile() -> str:
 
 @mcp.tool(
     name="get_user_health_profile",
+    title="Get User Health Profile",
     annotations=READ,
     description=_tool_desc(HEALTH_PROFILE_DESC),
 )
@@ -140,6 +144,7 @@ async def get_user_health_profile() -> str:
 
 @mcp.tool(
     name="update_user_health_profile",
+    title="Update User Health Profile",
     annotations=WRITE,
     description=(
         "Update the current user's health profile. "
@@ -202,6 +207,7 @@ async def user_preferences() -> str:
 
 @mcp.tool(
     name="get_user_preferences",
+    title="Get User Preferences",
     annotations=READ,
     description=_tool_desc(PREFERENCES_DESC),
 )
@@ -211,6 +217,7 @@ async def get_user_preferences() -> str:
 
 @mcp.tool(
     name="update_user_preferences",
+    title="Update User Preferences",
     annotations=WRITE,
     description=(
         "Update the current user's preferences. "
@@ -246,7 +253,7 @@ async def update_user_preferences(
 
 
 # ---------------------------------------------------------------------------
-# Context
+# Full context
 # ---------------------------------------------------------------------------
 
 CONTEXT_DESC = (
@@ -283,6 +290,7 @@ FROM
 
 @mcp.tool(
     name="get_user_context",
+    title="Get Full User Context",
     annotations=READ,
     description=_tool_desc(CONTEXT_DESC),
 )

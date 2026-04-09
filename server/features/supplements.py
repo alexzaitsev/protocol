@@ -99,6 +99,7 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
 
 @mcp.tool(
     name="get_inventory_list",
+    title="List Supplement Inventory",
     annotations=READ,
     description=(
         "Returns all items in the shared supplement inventory. "
@@ -118,6 +119,7 @@ async def get_inventory_list() -> str:
 
 @mcp.tool(
     name="get_inventory",
+    title="Get Inventory Item",
     annotations=READ,
     description=(
         "Get full details for a single inventory item by ID. "
@@ -139,6 +141,7 @@ async def get_inventory(
 
 @mcp.tool(
     name="add_inventory",
+    title="Add Inventory Item",
     annotations=WRITE,
     description=(
         "Add a new supplement to the shared inventory catalog. "
@@ -189,6 +192,7 @@ async def add_inventory(
 
 @mcp.tool(
     name="update_inventory",
+    title="Update Inventory Item",
     annotations=WRITE,
     description=(
         "Update fields on a shared inventory item by inventory_id. "
@@ -255,6 +259,7 @@ async def update_inventory(
 
 @mcp.tool(
     name="add_context",
+    title="Add Supplement Purpose",
     annotations=WRITE,
     description=(
         "Add purpose context for a supplement in the user's journal. "
@@ -291,6 +296,7 @@ async def add_context(
 
 @mcp.tool(
     name="update_context",
+    title="Update Supplement Purpose",
     annotations=WRITE,
     description=(
         "Update the purpose context for a supplement. "
@@ -328,6 +334,7 @@ async def update_context(
 
 @mcp.tool(
     name="get_supplement_protocol",
+    title="Get Active Supplement Protocol",
     annotations=READ,
     description=(
         "Get all active supplements the user is currently taking — the full protocol. "
@@ -388,6 +395,7 @@ async def get_supplement_protocol() -> str:
 
 @mcp.tool(
     name="get_supplement",
+    title="Get Supplement Entry",
     annotations=READ,
     description=(
         "Get the current supplement entry by inventory_id. "
@@ -441,6 +449,7 @@ async def get_supplement(
 
 @mcp.tool(
     name="get_supplement_history",
+    title="Get Supplement History",
     annotations=READ,
     description=(
         "Get the full change history for a supplement by inventory_id. "
@@ -512,6 +521,7 @@ _JOURNAL_SELECT = """
 
 @mcp.tool(
     name="add_supplement",
+    title="Add Supplement to Journal",
     annotations=WRITE,
     description=(
         "Add a supplement to the user's journal. "
@@ -583,6 +593,7 @@ async def add_supplement(
 
 @mcp.tool(
     name="update_supplement_replace",
+    title="Change Supplement Regimen",
     annotations=WRITE,
     description=(
         "Change how a supplement is taken (SCD Type 2). "
@@ -656,6 +667,7 @@ async def update_supplement_replace(
 
 @mcp.tool(
     name="update_supplement_end",
+    title="Stop Taking Supplement",
     annotations=WRITE,
     description=(
         "Stop taking a supplement — sets ended_at to today. "
