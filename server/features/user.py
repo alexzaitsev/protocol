@@ -9,7 +9,6 @@ from fastmcp.exceptions import ToolError
 from pydantic import BaseModel, Field
 from utils.db import build_update, dump_models
 from utils.mcp_annotations import READ, WRITE
-from utils.pydantic import describe_schema
 
 
 class UserProfile(BaseModel):
@@ -70,37 +69,16 @@ class UserContext(BaseModel):
     preferences: UserPreferences
 
 
-def _tool_desc(desc: str) -> str:
-    return f"Get {desc[0].lower()}{desc[1:]}"
-
-
 # ---------------------------------------------------------------------------
 # Profile
 # ---------------------------------------------------------------------------
-
-PROFILE_DESC = (
-    f"Basic demographics of the current user.\n{describe_schema(UserProfile)}"
-)
-
-
-@mcp.resource(
-    uri="user://profile",
-    name="User Basic Demographics",
-    description=PROFILE_DESC,
-    mime_type="application/json",
-)
-async def user_profile() -> str:
-    row = await fetchrow_rls("SELECT * FROM person.users")
-    if row is None:
-        return '{"error": "user not found"}'
-    return UserProfile(**dict(row)).model_dump_json()
 
 
 @mcp.tool(
     name="get_user_profile",
     title="Get User Profile",
     annotations=READ,
-    description=_tool_desc(PROFILE_DESC),
+    description="Get basic demographics of the current user.",
 )
 async def get_user_profile() -> UserProfile:
     row = await fetchrow_rls("SELECT * FROM person.users")
@@ -113,30 +91,12 @@ async def get_user_profile() -> UserProfile:
 # Health profile
 # ---------------------------------------------------------------------------
 
-HEALTH_PROFILE_DESC = (
-    f"Comprehensive health profile of the current user.\n"
-    f"{describe_schema(UserHealthProfile)}"
-)
-
-
-@mcp.resource(
-    uri="user://health-profile",
-    name="User Health Profile",
-    description=HEALTH_PROFILE_DESC,
-    mime_type="application/json",
-)
-async def user_health_profile() -> str:
-    row = await fetchrow_rls("SELECT * FROM person.health_profiles")
-    if row is None:
-        return '{"error": "user not found"}'
-    return UserHealthProfile(**dict(row)).model_dump_json()
-
 
 @mcp.tool(
     name="get_user_health_profile",
     title="Get User Health Profile",
     annotations=READ,
-    description=_tool_desc(HEALTH_PROFILE_DESC),
+    description="Get comprehensive health profile of the current user.",
 )
 async def get_user_health_profile() -> UserHealthProfile:
     row = await fetchrow_rls("SELECT * FROM person.health_profiles")
@@ -151,8 +111,7 @@ async def get_user_health_profile() -> UserHealthProfile:
     annotations=WRITE,
     description=(
         "Update the current user's health profile. "
-        "Only provided fields are changed; omitted fields remain unchanged.\n"
-        f"{describe_schema(UserHealthProfile)}"
+        "Only provided fields are changed; omitted fields remain unchanged."
     ),
 )
 async def update_user_health_profile(
@@ -190,29 +149,12 @@ async def update_user_health_profile(
 # Preferences
 # ---------------------------------------------------------------------------
 
-PREFERENCES_DESC = (
-    f"Preferences and settings of the current user.\n{describe_schema(UserPreferences)}"
-)
-
-
-@mcp.resource(
-    uri="user://preferences",
-    name="User Preferences",
-    description=PREFERENCES_DESC,
-    mime_type="application/json",
-)
-async def user_preferences() -> str:
-    row = await fetchrow_rls("SELECT * FROM person.preferences")
-    if row is None:
-        return '{"error": "user not found"}'
-    return UserPreferences(**dict(row)).model_dump_json()
-
 
 @mcp.tool(
     name="get_user_preferences",
     title="Get User Preferences",
     annotations=READ,
-    description=_tool_desc(PREFERENCES_DESC),
+    description="Get preferences and settings of the current user.",
 )
 async def get_user_preferences() -> UserPreferences:
     row = await fetchrow_rls("SELECT * FROM person.preferences")
@@ -227,8 +169,7 @@ async def get_user_preferences() -> UserPreferences:
     annotations=WRITE,
     description=(
         "Update the current user's preferences. "
-        "Only provided fields are changed; omitted fields remain unchanged.\n"
-        f"{describe_schema(UserPreferences)}"
+        "Only provided fields are changed; omitted fields remain unchanged."
     ),
 )
 async def update_user_preferences(
@@ -262,50 +203,45 @@ async def update_user_preferences(
 # Full context
 # ---------------------------------------------------------------------------
 
-CONTEXT_DESC = (
-    "Full user context: demographics, health profile, and preferences in one call.\n"
-    f"{describe_schema(UserContext)}"
-)
-
-_CONTEXT_QUERY = """
-SELECT
-  u.display_name,
-  u.sex,
-  u.date_of_birth,
-  h.conditions,
-  h.family_history,
-  h.substances,
-  h.diet_notes,
-  h.activity_notes,
-  h.safety_checks,
-  h.methodology_notes,
-  h.health_priorities,
-  p.location,
-  p.occupation,
-  p.language,
-  p.units,
-  p.currency,
-  p.date_format,
-  p.communication
-FROM
-  person.users u
-  INNER JOIN person.health_profiles h ON h.user_id = u.id
-  INNER JOIN person.preferences p ON p.user_id = u.id
-"""
-
 
 @mcp.tool(
     name="get_user_context",
     title="Get Full User Context",
     annotations=READ,
-    description=_tool_desc(CONTEXT_DESC),
+    description="Get full user context: demographics, health profile, and preferences in one call.",
 )
 async def get_user_context() -> UserContext:
-    row = await fetchrow_rls(_CONTEXT_QUERY)
+    row = await fetchrow_rls(
+        """
+        SELECT
+          u.display_name,
+          u.sex,
+          u.date_of_birth,
+          h.conditions,
+          h.family_history,
+          h.substances,
+          h.diet_notes,
+          h.activity_notes,
+          h.safety_checks,
+          h.methodology_notes,
+          h.health_priorities,
+          p.location,
+          p.occupation,
+          p.language,
+          p.units,
+          p.currency,
+          p.date_format,
+          p.communication
+        FROM
+          person.users u
+          INNER JOIN person.health_profiles h ON h.user_id = u.id
+          INNER JOIN person.preferences p ON p.user_id = u.id
+        """
+    )
     if row is None:
         raise ToolError("user not found")
     r = dict(row)
-    context = UserContext(
+    return UserContext(
         profile=UserProfile(
             **{k: r[k] for k in ("display_name", "sex", "date_of_birth")}
         ),
@@ -339,4 +275,3 @@ async def get_user_context() -> UserContext:
             }
         ),
     )
-    return context

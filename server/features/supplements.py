@@ -11,7 +11,6 @@ from fastmcp.exceptions import ToolError
 from pydantic import BaseModel, Field
 from utils.db import build_update_where
 from utils.mcp_annotations import READ, WRITE
-from utils.pydantic import describe_schema
 
 
 class InventoryItem(BaseModel):
@@ -103,9 +102,7 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
     annotations=READ,
     description=(
         "Returns all items in the shared supplement inventory. "
-        "Use this to resolve inventory_id before any operation that requires it.\n"
-        "Returns array of items.\n"
-        f"{describe_schema(InventoryListItem)}"
+        "Use this to resolve inventory_id before any operation that requires it."
     ),
 )
 async def get_inventory_list() -> list[InventoryListItem]:
@@ -121,8 +118,7 @@ async def get_inventory_list() -> list[InventoryListItem]:
     annotations=READ,
     description=(
         "Get full details for a single inventory item by ID. "
-        "Use get_inventory_list to resolve the ID first.\n"
-        f"{describe_schema(InventoryItem)}"
+        "Use get_inventory_list to resolve the ID first."
     ),
 )
 async def get_inventory(
@@ -144,8 +140,7 @@ async def get_inventory(
     description=(
         "Add a new supplement to the shared inventory catalog. "
         "Use get_inventory_list first to avoid duplicates — inventory must be unique. "
-        "Returns the created item with its id.\n"
-        f"{describe_schema(InventoryItem)}"
+        "Returns the created item with its id."
     ),
 )
 async def add_inventory(
@@ -192,8 +187,7 @@ async def add_inventory(
     annotations=WRITE,
     description=(
         "Update fields on a shared inventory item by inventory_id. "
-        "Only provided fields are changed; omitted fields remain unchanged.\n"
-        f"{describe_schema(InventoryItem)}"
+        "Only provided fields are changed; omitted fields remain unchanged."
     ),
 )
 async def update_inventory(
@@ -258,8 +252,7 @@ async def update_inventory(
     description=(
         "Add purpose context for a supplement in the user's journal. "
         "Each supplement can have one context entry per user — "
-        "use update_context to change an existing one.\n"
-        f"{describe_schema(Context)}"
+        "use update_context to change an existing one."
     ),
 )
 async def add_context(
@@ -290,11 +283,7 @@ async def add_context(
     name="update_context",
     title="Update Supplement Purpose",
     annotations=WRITE,
-    description=(
-        "Update the purpose context for a supplement. "
-        "Replaces the full purpose list.\n"
-        f"{describe_schema(Context)}"
-    ),
+    description="Update the purpose context for a supplement. Replaces the full purpose list.",
 )
 async def update_context(
     inventory_id: int = Field(description="inventory item ID"),
@@ -329,10 +318,7 @@ async def update_context(
     description=(
         "Get all active supplements the user is currently taking — the full protocol. "
         "Returns dosing schedules, inventory details, and purpose for each supplement. "
-        "Ordered by time-block priority (any > morning > lunch > evening), then by name. "
-        "Returns [] if no active supplements.\n"
-        "Returns array of items.\n"
-        f"{describe_schema(JournalEntry)}"
+        "Ordered by time-block priority (any > morning > lunch > evening), then by name."
     ),
 )
 async def get_supplement_protocol() -> list[JournalEntry]:
@@ -389,8 +375,7 @@ async def get_supplement_protocol() -> list[JournalEntry]:
     description=(
         "Get the current supplement entry by inventory_id. "
         "Returns the active entry, or the most recently ended if none active. "
-        "Includes full inventory details and user's purpose.\n"
-        f"{describe_schema(JournalEntry)}"
+        "Includes full inventory details and user's purpose."
     ),
 )
 async def get_supplement(
@@ -444,10 +429,7 @@ async def get_supplement(
         "Get the full change history for a supplement by inventory_id. "
         "Returns all journal entries in chronological order (oldest first), "
         "including ended entries and their replacement chains via replaces_id. "
-        "Does not include purpose — history tracks regimen changes only. "
-        "Returns [] if no entries found.\n"
-        "Returns array of items.\n"
-        f"{describe_schema(JournalEntry)}"
+        "Does not include purpose — history tracks regimen changes only."
     ),
 )
 async def get_supplement_history(
@@ -518,8 +500,7 @@ _JOURNAL_SELECT = """
         "Context must exist before adding a supplement — use add_context first. "
         "If the supplement was previously taken and has a closed history entry, "
         "replaces_id (id of the last closed entry) and replacement_reason are required — "
-        "use get_supplement_history to find the id.\n"
-        f"{describe_schema(JournalEntry)}"
+        "use get_supplement_history to find the id."
     ),
 )
 async def add_supplement(
@@ -586,8 +567,7 @@ async def add_supplement(
     description=(
         "Change how a supplement is taken (SCD Type 2). "
         "Ends the current entry today and creates a new one linked via replaces_id. "
-        "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry.\n"
-        f"{describe_schema(JournalEntry)}"
+        "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry."
     ),
 )
 async def update_supplement_replace(
@@ -658,8 +638,7 @@ async def update_supplement_replace(
     description=(
         "Stop taking a supplement — sets ended_at to today. "
         "Use when permanently discontinuing without a replacement. "
-        "To switch to a different dose or timing, use update_supplement_replace instead.\n"
-        f"{describe_schema(JournalEntry)}"
+        "To switch to a different dose or timing, use update_supplement_replace instead."
     ),
 )
 async def update_supplement_end(
