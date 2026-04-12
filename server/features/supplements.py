@@ -1,13 +1,13 @@
 # Copyright 2026 Alex Zaitsev
 # SPDX-License-Identifier: AGPL-3.0-only
 
-import json
 from datetime import date
 from enum import StrEnum
 
 import asyncpg
 from app import mcp
 from data.db import fetch, fetch_rls, fetchrow, fetchrow_rls, rls_connection
+from fastmcp.exceptions import ToolError
 from pydantic import BaseModel, Field
 from utils.db import build_update_where
 from utils.mcp_annotations import READ, WRITE
@@ -108,13 +108,11 @@ def _build_journal_entry(row: asyncpg.Record) -> JournalEntry:
         f"{describe_schema(InventoryListItem)}"
     ),
 )
-async def get_inventory_list() -> str:
+async def get_inventory_list() -> list[InventoryListItem]:
     rows = await fetch(
         "SELECT id, name, brand FROM supplements.inventory ORDER BY name"
     )
-    return json.dumps(
-        [InventoryListItem(**dict(r)).model_dump(mode="json") for r in rows]
-    )
+    return [InventoryListItem(**dict(r)) for r in rows]
 
 
 @mcp.tool(
@@ -129,14 +127,14 @@ async def get_inventory_list() -> str:
 )
 async def get_inventory(
     inventory_id: int = Field(description="inventory item ID"),
-) -> str:
+) -> InventoryItem:
     row = await fetchrow(
         "SELECT * FROM supplements.inventory WHERE id = $1",
         inventory_id,
     )
     if row is None:
-        return json.dumps({"error": "inventory item not found"})
-    return InventoryItem(**dict(row)).model_dump_json()
+        raise ToolError("inventory item not found")
+    return InventoryItem(**dict(row))
 
 
 @mcp.tool(
@@ -165,7 +163,7 @@ async def add_inventory(
         description="notable product traits, e.g. 'timed release', 'micronized'",
     ),
     url: str | None = Field(default=None, description="product URL"),
-) -> str:
+) -> InventoryItem:
     try:
         row = await fetchrow(
             """
@@ -183,11 +181,9 @@ async def add_inventory(
             url,
         )
     except asyncpg.UniqueViolationError:
-        return json.dumps(
-            {"error": "inventory item with this name and brand already exists"}
-        )
+        raise ToolError("inventory item with this name and brand already exists")
     assert row is not None
-    return InventoryItem(**dict(row)).model_dump_json()
+    return InventoryItem(**dict(row))
 
 
 @mcp.tool(
@@ -221,16 +217,14 @@ async def update_inventory(
         description="notable product traits, e.g. 'timed release', 'micronized'",
     ),
     url: str | None = Field(default=None, description="product URL"),
-) -> str:
+) -> InventoryItem:
     journal_row = await fetchrow_rls(
         "SELECT 1 FROM supplements.journal WHERE inventory_id = $1 LIMIT 1",
         inventory_id,
     )
     if journal_row is None:
-        return json.dumps(
-            {
-                "error": "no journal entries for this inventory_id — you can only update supplements you have taken"
-            }
+        raise ToolError(
+            "no journal entries for this inventory_id — you can only update supplements you have taken"
         )
     fields: dict[str, object] = {
         "name": name,
@@ -245,11 +239,11 @@ async def update_inventory(
         "supplements.inventory", fields, {"id": inventory_id}
     )
     if not query:
-        return json.dumps({"error": "no fields provided"})
+        raise ToolError("no fields provided")
     row = await fetchrow(query, *args)
     if row is None:
-        return json.dumps({"error": "inventory item not found"})
-    return InventoryItem(**dict(row)).model_dump_json()
+        raise ToolError("inventory item not found")
+    return InventoryItem(**dict(row))
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +267,7 @@ async def add_context(
     purpose: list[str] = Field(
         description="why the user takes this supplement, e.g. ['bone health', 'immune support']"
     ),
-) -> str:
+) -> Context:
     try:
         row = await fetchrow_rls(
             """
@@ -285,13 +279,11 @@ async def add_context(
             purpose,
         )
     except asyncpg.UniqueViolationError:
-        return json.dumps(
-            {
-                "error": "context already exists for this supplement — use update_context to change it"
-            }
+        raise ToolError(
+            "context already exists for this supplement — use update_context to change it"
         )
     assert row is not None
-    return Context(**dict(row)).model_dump_json()
+    return Context(**dict(row))
 
 
 @mcp.tool(
@@ -309,7 +301,7 @@ async def update_context(
     purpose: list[str] = Field(
         description="updated purpose list, e.g. ['bone health', 'immune support']"
     ),
-) -> str:
+) -> Context:
     row = await fetchrow_rls(
         """
         UPDATE supplements.context
@@ -321,10 +313,8 @@ async def update_context(
         inventory_id,
     )
     if row is None:
-        return json.dumps(
-            {"error": "no context found for this supplement — use add_context first"}
-        )
-    return Context(**dict(row)).model_dump_json()
+        raise ToolError("no context found for this supplement — use add_context first")
+    return Context(**dict(row))
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +335,7 @@ async def update_context(
         f"{describe_schema(JournalEntry)}"
     ),
 )
-async def get_supplement_protocol() -> str:
+async def get_supplement_protocol() -> list[JournalEntry]:
     rows = await fetch_rls(
         """
         SELECT
@@ -384,8 +374,7 @@ async def get_supplement_protocol() -> str:
           i.name
         """
     )
-    entries = [_build_journal_entry(row) for row in rows]
-    return json.dumps([e.model_dump(mode="json") for e in entries])
+    return [_build_journal_entry(row) for row in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -406,7 +395,7 @@ async def get_supplement_protocol() -> str:
 )
 async def get_supplement(
     inventory_id: int = Field(description="inventory item ID"),
-) -> str:
+) -> JournalEntry:
     row = await fetchrow_rls(
         """
         SELECT
@@ -443,8 +432,8 @@ async def get_supplement(
         inventory_id,
     )
     if row is None:
-        return json.dumps({"error": "no supplement found for this inventory_id"})
-    return _build_journal_entry(row).model_dump_json()
+        raise ToolError("no supplement found for this inventory_id")
+    return _build_journal_entry(row)
 
 
 @mcp.tool(
@@ -463,7 +452,7 @@ async def get_supplement(
 )
 async def get_supplement_history(
     inventory_id: int = Field(description="inventory item ID"),
-) -> str:
+) -> list[JournalEntry]:
     rows = await fetch_rls(
         """
         SELECT
@@ -494,8 +483,7 @@ async def get_supplement_history(
         """,
         inventory_id,
     )
-    entries = [_build_journal_entry(row) for row in rows]
-    return json.dumps([e.model_dump(mode="json") for e in entries])
+    return [_build_journal_entry(row) for row in rows]
 
 
 _JOURNAL_SELECT = """
@@ -554,7 +542,7 @@ async def add_supplement(
         default=None,
         description="why the supplement is being reintroduced; required when replaces_id is set",
     ),
-) -> str:
+) -> JournalEntry:
     try:
         row = await fetchrow_rls(
             f"""
@@ -584,11 +572,11 @@ async def add_supplement(
             replacement_reason,
         )
     except asyncpg.ForeignKeyViolationError:
-        return json.dumps({"error": "inventory_id not found"})
+        raise ToolError("inventory_id not found")
     except asyncpg.RaiseError as e:
-        return json.dumps({"error": str(e)})
+        raise ToolError(str(e))
     assert row is not None
-    return _build_journal_entry(row).model_dump_json()
+    return _build_journal_entry(row)
 
 
 @mcp.tool(
@@ -616,7 +604,7 @@ async def update_supplement_replace(
     time_blocks: list[TimeBlock] | None = Field(
         default=None, description="new time blocks, or omit to keep current"
     ),
-) -> str:
+) -> JournalEntry:
     try:
         async with rls_connection() as conn:
             old = await conn.fetchrow(
@@ -632,9 +620,7 @@ async def update_supplement_replace(
                 inventory_id,
             )
             if old is None:
-                return json.dumps(
-                    {"error": "no active supplement found for this inventory_id"}
-                )
+                raise ToolError("no active supplement found for this inventory_id")
             new_row = await conn.fetchrow(
                 f"""
                 WITH inserted AS (
@@ -660,9 +646,9 @@ async def update_supplement_replace(
                 replacement_reason,
             )
     except asyncpg.RaiseError as e:
-        return json.dumps({"error": str(e)})
+        raise ToolError(str(e))
     assert new_row is not None
-    return _build_journal_entry(new_row).model_dump_json()
+    return _build_journal_entry(new_row)
 
 
 @mcp.tool(
@@ -682,7 +668,7 @@ async def update_supplement_end(
         default=None,
         description="reason for stopping, e.g. 'course completed', 'side effects'",
     ),
-) -> str:
+) -> JournalEntry:
     row = await fetchrow_rls(
         f"""
         WITH updated AS (
@@ -705,5 +691,5 @@ async def update_supplement_end(
         inventory_id,
     )
     if row is None:
-        return json.dumps({"error": "no active supplement found for this inventory_id"})
-    return _build_journal_entry(row).model_dump_json()
+        raise ToolError("no active supplement found for this inventory_id")
+    return _build_journal_entry(row)

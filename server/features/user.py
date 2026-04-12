@@ -1,11 +1,11 @@
 # Copyright 2026 Alex Zaitsev
 # SPDX-License-Identifier: AGPL-3.0-only
 
-import json
 from datetime import date
 
 from app import mcp
 from data.db import fetchrow_rls
+from fastmcp.exceptions import ToolError
 from pydantic import BaseModel, Field
 from utils.db import build_update, dump_models
 from utils.mcp_annotations import READ, WRITE
@@ -70,9 +70,6 @@ class UserContext(BaseModel):
     preferences: UserPreferences
 
 
-USER_ERROR = json.dumps({"error": "user not found"})
-
-
 def _tool_desc(desc: str) -> str:
     return f"Get {desc[0].lower()}{desc[1:]}"
 
@@ -95,7 +92,7 @@ PROFILE_DESC = (
 async def user_profile() -> str:
     row = await fetchrow_rls("SELECT * FROM person.users")
     if row is None:
-        return USER_ERROR
+        return '{"error": "user not found"}'
     return UserProfile(**dict(row)).model_dump_json()
 
 
@@ -105,8 +102,11 @@ async def user_profile() -> str:
     annotations=READ,
     description=_tool_desc(PROFILE_DESC),
 )
-async def get_user_profile() -> str:
-    return await user_profile()
+async def get_user_profile() -> UserProfile:
+    row = await fetchrow_rls("SELECT * FROM person.users")
+    if row is None:
+        raise ToolError("user not found")
+    return UserProfile(**dict(row))
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ HEALTH_PROFILE_DESC = (
 async def user_health_profile() -> str:
     row = await fetchrow_rls("SELECT * FROM person.health_profiles")
     if row is None:
-        return USER_ERROR
+        return '{"error": "user not found"}'
     return UserHealthProfile(**dict(row)).model_dump_json()
 
 
@@ -138,8 +138,11 @@ async def user_health_profile() -> str:
     annotations=READ,
     description=_tool_desc(HEALTH_PROFILE_DESC),
 )
-async def get_user_health_profile() -> str:
-    return await user_health_profile()
+async def get_user_health_profile() -> UserHealthProfile:
+    row = await fetchrow_rls("SELECT * FROM person.health_profiles")
+    if row is None:
+        raise ToolError("user not found")
+    return UserHealthProfile(**dict(row))
 
 
 @mcp.tool(
@@ -161,7 +164,7 @@ async def update_user_health_profile(
     safety_checks: list[str] | None = None,
     methodology_notes: str | None = None,
     health_priorities: list[str] | None = None,
-) -> str:
+) -> UserHealthProfile:
     fields: dict[str, object] = {
         "conditions": dump_models(conditions) if conditions is not None else None,
         "family_history": (
@@ -176,11 +179,11 @@ async def update_user_health_profile(
     }
     query, args = build_update("person.health_profiles", fields)
     if not query:
-        return json.dumps({"error": "no fields provided"})
+        raise ToolError("no fields provided")
     row = await fetchrow_rls(query, *args)
     if row is None:
-        return USER_ERROR
-    return UserHealthProfile(**dict(row)).model_dump_json()
+        raise ToolError("user not found")
+    return UserHealthProfile(**dict(row))
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +204,7 @@ PREFERENCES_DESC = (
 async def user_preferences() -> str:
     row = await fetchrow_rls("SELECT * FROM person.preferences")
     if row is None:
-        return USER_ERROR
+        return '{"error": "user not found"}'
     return UserPreferences(**dict(row)).model_dump_json()
 
 
@@ -211,8 +214,11 @@ async def user_preferences() -> str:
     annotations=READ,
     description=_tool_desc(PREFERENCES_DESC),
 )
-async def get_user_preferences() -> str:
-    return await user_preferences()
+async def get_user_preferences() -> UserPreferences:
+    row = await fetchrow_rls("SELECT * FROM person.preferences")
+    if row is None:
+        raise ToolError("user not found")
+    return UserPreferences(**dict(row))
 
 
 @mcp.tool(
@@ -233,7 +239,7 @@ async def update_user_preferences(
     currency: str | None = None,
     date_format: str | None = None,
     communication: str | None = None,
-) -> str:
+) -> UserPreferences:
     fields: dict[str, object] = {
         "location": location,
         "occupation": occupation,
@@ -245,11 +251,11 @@ async def update_user_preferences(
     }
     query, args = build_update("person.preferences", fields)
     if not query:
-        return json.dumps({"error": "no fields provided"})
+        raise ToolError("no fields provided")
     row = await fetchrow_rls(query, *args)
     if row is None:
-        return USER_ERROR
-    return UserPreferences(**dict(row)).model_dump_json()
+        raise ToolError("user not found")
+    return UserPreferences(**dict(row))
 
 
 # ---------------------------------------------------------------------------
@@ -294,10 +300,10 @@ FROM
     annotations=READ,
     description=_tool_desc(CONTEXT_DESC),
 )
-async def get_user_context() -> str:
+async def get_user_context() -> UserContext:
     row = await fetchrow_rls(_CONTEXT_QUERY)
     if row is None:
-        return USER_ERROR
+        raise ToolError("user not found")
     r = dict(row)
     context = UserContext(
         profile=UserProfile(
@@ -333,4 +339,4 @@ async def get_user_context() -> str:
             }
         ),
     )
-    return context.model_dump_json()
+    return context
