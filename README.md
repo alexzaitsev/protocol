@@ -20,4 +20,4 @@ Quick links:
 
 ## License
 
-Copyright 2026 Alex Zaitsev. Licensed under the GNU Affero General Public License v3.0. Commercial use requires a separate written agreement.
+Copyright 2026 Alex Zaitsev. Licensed under the GNU Affero General Public License v3.0.
