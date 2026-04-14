@@ -1,0 +1,30 @@
+/* Splash-page gradient. Active only when a hero is present in frontmatter. */
+
+:root {
+  --protocol-hero-violet: hsl(270 75% 60% / 0.38);
+  --protocol-hero-purple: hsl(300 70% 55% / 0.30);
+}
+
+:root[data-theme='dark'] {
+  --protocol-hero-violet: hsl(270 80% 55% / 0.32);
+  --protocol-hero-purple: hsl(300 75% 50% / 0.36);
+}
+
+html[data-has-hero] body {
+  background-image:
+    radial-gradient(ellipse 120% 75% at 15% -5%, var(--protocol-hero-violet), transparent 65%),
+    radial-gradient(ellipse 105% 83% at 95% 110%, var(--protocol-hero-purple), transparent 65%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Rounded corners on feature cards */
+article.card {
+  border-radius: 0.75rem;
+}
+
+html[data-has-hero] header.header {
+  background-color: transparent;
+  border-bottom-color: transparent;
+  backdrop-filter: blur(8px);
+}

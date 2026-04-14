@@ -1,0 +1,54 @@
+---
+title: Introduction
+description: Why Protocol exists, how it thinks about health data, and what makes it different.
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+You track supplements. You get blood tests. But the two never talk to each other - and neither one remembers what happened six months ago.
+
+## The gap existing tools leave
+
+<CardGrid>
+  <Card title="Supplement trackers">
+    Log what you take today. But ask them what your protocol looked like 6 months ago, or why you started a supplement in the first place - they have no answer. History and intent aren't part of the model.
+  </Card>
+  <Card title="Blood test platforms">
+    Analyze biomarkers and flag out-of-range values. But supplements are treated as recommendations, not as a tracked protocol with a timeline. There's nothing to correlate against.
+  </Card>
+</CardGrid>
+
+<Aside type="tip">
+Protocol is built around the question that neither tool can answer: *did what I changed actually work?*
+</Aside>
+
+## Principles
+
+<CardGrid>
+  <Card title="🏠 Self-hosted">
+    You deploy to your own Supabase and Fly.io accounts. You control where your data lives and who has access to it.
+  </Card>
+  <Card title="🤖 AI-native">
+    There is no dashboard or mobile app. Claude (or any MCP-compatible client) is the interface. You interact through conversation - asking questions, recording changes, reviewing history.
+  </Card>
+  <Card title="📜 Full history, never lost">
+    Every supplement change is stored as a new record, not an edit. Using [SCD Type 2](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row), you can reconstruct your exact protocol on any date in the past.
+  </Card>
+  <Card title="🏡 Household-ready">
+    Multiple people share one deployment. A shared inventory catalog means two family members taking the same product reference the same record - no duplication.
+  </Card>
+</CardGrid>
+
+## What Protocol is not
+
+It is not a medical device. It does not diagnose, prescribe, or replace professional advice. It does not ingest wearable data. It is a structured, versioned record of what you take and why - with an AI that can reason over it.
+
+## Ready to set it up?
+
+Setup involves three external services and takes roughly 20-30 minutes. Each has its own guide.
+
+<LinkCard
+  title="Prerequisites →"
+  description="Set up Supabase, Google Cloud, and Fly.io before deploying."
+  href="/protocol/guides/prerequisites/"
+/>

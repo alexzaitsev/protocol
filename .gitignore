@@ -8,3 +8,10 @@ CLAUDE.md
 
 # Environment
 .env
+
+# Node
+node_modules/
+
+# Astro
+dist/
+.astro/

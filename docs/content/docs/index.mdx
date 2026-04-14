@@ -1,0 +1,63 @@
+---
+title: Protocol
+description: A self-hosted MCP server that gives your AI assistant a persistent, versioned record of your supplement history and health profile.
+template: splash
+hero:
+  tagline: A supplement protocol engine with blood test correlation and full change history - designed for a household of 1 or more people who track what they take, why they take it, and whether it's working.
+  actions:
+    - text: Get Started
+      link: /protocol/guides/introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/alexzaitsev/protocol
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+
+A self-hosted [MCP server](https://modelcontextprotocol.io/) that gives Claude (or any MCP-compatible AI client) a persistent, versioned record of your supplement history and health profile. AI-first.
+
+## What it does
+
+<CardGrid>
+  <Card title="💊 Supplement lifecycle">
+    Every change is a new record, never an edit. Using [SCD Type 2](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row) versioning you can reconstruct your exact protocol on any past date.
+  </Card>
+  <Card title="🎯 Purpose tracking">
+    Each supplement carries a purpose list so the AI always knows why you take what you take - not just what.
+  </Card>
+  <Card title="📋 Active protocol view">
+    Query your current stack at any time, ordered by time-of-day block, with dosages and full inventory details.
+  </Card>
+  <Card title="🩺 Health profile">
+    Conditions, medications, diet, activity, and health priorities - stored once, applied to every response.
+  </Card>
+</CardGrid>
+
+See the **[roadmap](roadmap/roadmap/)** for planned features.
+
+## How it works
+
+<Steps>
+1. **Deploy the server**
+
+   Set up Supabase for the database and Fly.io for hosting. Run the deploy workflow to push migrations and update the server.
+
+2. **Connect your AI client**
+
+   Add Protocol as a connector in Claude.ai or any MCP-compatible client. Authenticate with your Google account.
+
+3. **Populate your data**
+
+   Run the onboarding prompt to fill in your health profile, preferences, and supplement history through a guided conversation.
+
+4. **Ask**
+
+   Your AI now has full context - supplement history, health profile, preferences. Ask questions, record changes, review history, all through conversation.
+</Steps>
+
+## License
+
+Copyright 2026 Alex Zaitsev. Licensed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html).
+Commercial use requires a separate written agreement.
