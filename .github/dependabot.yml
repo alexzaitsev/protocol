@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # Python — reads pyproject.toml in server/.
+  # Dependabot has no native uv ecosystem; pip reads PEP 621 pyproject.toml.
+  # uv.lock is NOT auto-regenerated — ci.yml runs uv sync without --locked.
+  - package-ecosystem: "pip"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "python"]
+    groups:
+      python-deps:
+        patterns: ["*"]
+
+  # Node.js — reads package.json / package-lock.json at repo root.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "javascript"]
+    groups:
+      npm-deps:
+        patterns: ["*"]
+
+  # GitHub Actions — keeps all actions/* and third-party actions up to date.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "github-actions"]
