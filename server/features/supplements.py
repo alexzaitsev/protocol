@@ -566,7 +566,7 @@ async def add_supplement(
     annotations=WRITE,
     description=(
         "Change how a supplement is taken (SCD Type 2). "
-        "Ends the current entry today and creates a new one linked via replaces_id. "
+        "Closes the current entry (defaults to today) and creates a new one linked via replaces_id. "
         "Omitted fields (dosage, frequency, time_blocks) are copied from the current entry."
     ),
 )
@@ -584,20 +584,29 @@ async def update_supplement_replace(
     time_blocks: list[TimeBlock] | None = Field(
         default=None, description="new time blocks, or omit to keep current"
     ),
+    ended_at: date | None = Field(
+        default=None, description="end date for the current entry, defaults to today"
+    ),
+    started_at: date | None = Field(
+        default=None, description="start date for the new entry, defaults to today"
+    ),
 ) -> JournalEntry:
+    if ended_at is not None and started_at is not None and started_at < ended_at:
+        raise ToolError("started_at cannot be before ended_at")
     try:
         async with rls_connection() as conn:
             old = await conn.fetchrow(
                 """
                 UPDATE supplements.journal
                 SET
-                  ended_at = CURRENT_DATE
+                  ended_at = COALESCE($2, CURRENT_DATE)
                 WHERE
                   inventory_id = $1
                   AND ended_at IS NULL
                 RETURNING *
                 """,
                 inventory_id,
+                ended_at,
             )
             if old is None:
                 raise ToolError("no active supplement found for this inventory_id")
@@ -608,7 +617,7 @@ async def update_supplement_replace(
                     user_id, inventory_id, time_blocks, dosage, frequency,
                     started_at, replaces_id, replacement_reason
                   )
-                  VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7)
+                  VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE), $7, $8)
                   RETURNING *
                 )
                 SELECT
@@ -622,6 +631,7 @@ async def update_supplement_replace(
                 time_blocks if time_blocks is not None else old["time_blocks"],
                 dosage if dosage is not None else old["dosage"],
                 frequency if frequency is not None else old["frequency"],
+                started_at,
                 old["id"],
                 replacement_reason,
             )
