@@ -8,7 +8,7 @@ description: Run the Protocol MCP server locally.
 - [Python 3.14+](https://www.python.org/) with [uv](https://docs.astral.sh/uv/)
 - [Docker](https://www.docker.com/) - required for integration tests (testcontainers)
 - [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) - `brew install supabase/tap/supabase`
-- Google Cloud OAuth client configured with localhost redirect URIs (see [Google Cloud](/protocol/guides/prerequisites/google-cloud/) prerequisites)
+- Google Cloud OAuth client configured with localhost redirect URIs (see [Google Cloud](/guides/prerequisites/google-cloud/) prerequisites)
 
 ## Setup
 

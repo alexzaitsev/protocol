@@ -2,8 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  site: 'https://alexzaitsev.github.io',
-  base: '/protocol',
+  site: 'https://protocol.alexzaitsev.dev',
   srcDir: './docs',
   markdown: {
     smartypants: false,

@@ -8,15 +8,15 @@ The system runs as an [MCP server](https://modelcontextprotocol.io/) on Fly.io w
 
 Everything - setup, deployment, architecture, schema, and the MCP tool catalog - lives at:
 
-**https://alexzaitsev.github.io/protocol/**
+**https://protocol.alexzaitsev.dev**
 
 Quick links:
 
-- [Introduction](https://alexzaitsev.github.io/protocol/guides/introduction/) - what Protocol is and why it exists
-- [Prerequisites](https://alexzaitsev.github.io/protocol/guides/prerequisites/) - Supabase, Google Cloud, Fly.io
-- [Deployment](https://alexzaitsev.github.io/protocol/guides/deployment/)
-- [Onboarding](https://alexzaitsev.github.io/protocol/guides/onboarding/) - connect your AI client and populate your data
-- [Development](https://alexzaitsev.github.io/protocol/development/development/)
+- [Introduction](https://protocol.alexzaitsev.dev/guides/introduction/) - what Protocol is and why it exists
+- [Prerequisites](https://protocol.alexzaitsev.dev/guides/prerequisites/) - Supabase, Google Cloud, Fly.io
+- [Deployment](https://protocol.alexzaitsev.dev/guides/deployment/)
+- [Onboarding](https://protocol.alexzaitsev.dev/guides/onboarding/) - connect your AI client and populate your data
+- [Development](https://protocol.alexzaitsev.dev/development/development/)
 
 ## License
 

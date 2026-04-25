@@ -33,7 +33,7 @@ Source: `server/features/supplements.py`. Inventory is **shared across the house
 
 ## Supplement journal
 
-The SCD Type 2 history of what the user is taking. Every regimen change closes one row and opens another, linked via `replaces_id` - see [Schema](/protocol/development/database/schema/).
+The SCD Type 2 history of what the user is taking. Every regimen change closes one row and opens another, linked via `replaces_id` - see [Schema](/development/database/schema/).
 
 | Tool | Kind | Description |
 |------|------|-------------|

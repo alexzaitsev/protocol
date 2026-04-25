@@ -23,4 +23,4 @@ This guide assumes Claude.ai as the MCP client, but the steps apply to any clien
 
 Paste the [onboarding prompt](https://github.com/alexzaitsev/protocol/blob/main/prompts/onboarding_prompt.md) into Claude to set up your health profile and preferences. Claude will ask you questions conversationally and save the answers using the Protocol tools.
 
-Once done, see [Usage Examples](/protocol/guides/usage-examples/) for prompts to get started.
+Once done, see [Usage Examples](/guides/usage-examples/) for prompts to get started.

@@ -3,7 +3,7 @@ title: Deployment
 description: Set up the Github repository, apply migrations, seed data, and deploy the MCP server.
 ---
 
-After completing the [prerequisites](/protocol/guides/prerequisites/), you are ready to deploy Protocol.
+After completing the [prerequisites](/guides/prerequisites/), you are ready to deploy Protocol.
 
 ## Setup Github repository
 
@@ -39,7 +39,7 @@ INSERT INTO person.preferences (user_id) VALUES ('your_user_id');
 
 To remove a user, delete their row from `person.users` - all user-specific rows (`health_profiles`, `preferences`) are removed automatically via cascading deletes. Shared tables are left intact.
 
-Once users are added, proceed to [Onboarding](/protocol/guides/onboarding/) to connect an MCP client and set up health profiles.
+Once users are added, proceed to [Onboarding](/guides/onboarding/) to connect an MCP client and set up health profiles.
 
 ## Set preferred timezone in Supabase
 
@@ -56,4 +56,4 @@ Replace `America/New_York` with your timezone.
 
 ---
 
-Once deployed, proceed to [Onboarding](/protocol/guides/onboarding/) to connect your AI client and set up health profiles.
+Once deployed, proceed to [Onboarding](/guides/onboarding/) to connect your AI client and set up health profiles.

@@ -61,4 +61,4 @@ CREATE POLICY user_isolation ON person.health_profiles
 
 ## What RLS does not cover
 
-RLS checks row ownership but does not validate the shape of data. Application-level constraints (CHECK, UNIQUE, triggers - see [Schema](/protocol/development/database/schema/)) handle things like "you can only have one active entry per supplement" or "closed journal rows are immutable." The two layers are complementary.
+RLS checks row ownership but does not validate the shape of data. Application-level constraints (CHECK, UNIQUE, triggers - see [Schema](/development/database/schema/)) handle things like "you can only have one active entry per supplement" or "closed journal rows are immutable." The two layers are complementary.
