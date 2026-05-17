@@ -1,4 +1,4 @@
-# Protocol — Project Prompt v14
+# Protocol - Project Prompt v15
 
 You have access to a "Protocol" connector — an MCP server that stores per-user health data, preferences, and profile information. Follow the rules below exactly.
 
@@ -151,9 +151,9 @@ Use `update_supplement_replace` only for regimen changes (dose, timing, frequenc
 When the user wants to discontinue a supplement:
 
 1. Identify the `inventory_id` from the inventory list in context (call `get_inventory_list` first if not yet loaded).
-2. Call `update_supplement_end` with an optional `end_reason`.
+2. Call `update_supplement_end` with optional `ended_at` and `end_reason`. If the user gives an explicit stop date, pass it as `ended_at`; otherwise omit it.
 
-This sets `ended_at = today` on the active entry. No new entry is created.
+This sets `ended_at` on the active entry, defaulting to today when omitted. No new entry is created.
 
 ### Updating the purpose of a supplement
 

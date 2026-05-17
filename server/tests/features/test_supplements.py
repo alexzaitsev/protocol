@@ -750,8 +750,8 @@ JOIN supplements.inventory i ON i.id = ins.inventory_id
 _UPDATE_END_CTE = f"""
 WITH updated AS (
   UPDATE supplements.journal
-  SET ended_at = CURRENT_DATE, end_reason = $1
-  WHERE inventory_id = $2 AND ended_at IS NULL
+  SET ended_at = COALESCE($2, CURRENT_DATE), end_reason = $3
+  WHERE inventory_id = $1 AND ended_at IS NULL
   RETURNING *
 )
 SELECT {_JOURNAL_COLS}
@@ -847,22 +847,33 @@ class TestUpdateSupplementEnd:
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
         await _insert_journal(rls_conn, inv_id, time_blocks=["morning"])
 
-        row = await rls_conn.fetchrow(_UPDATE_END_CTE, None, inv_id)
+        row = await rls_conn.fetchrow(_UPDATE_END_CTE, inv_id, None, None)
         assert row is not None
         assert row["ended_at"] is not None
         assert row["end_reason"] is None
+
+    async def test_sets_explicit_ended_at(self, rls_conn):
+        inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
+        await _insert_journal(rls_conn, inv_id, time_blocks=["morning"])
+
+        row = await rls_conn.fetchrow(
+            _UPDATE_END_CTE, inv_id, date(2026, 2, 15), "course completed"
+        )
+        assert row is not None
+        assert row["ended_at"] == date(2026, 2, 15)
+        assert row["end_reason"] == "course completed"
 
     async def test_sets_end_reason(self, rls_conn):
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
         await _insert_journal(rls_conn, inv_id, time_blocks=["morning"])
 
-        row = await rls_conn.fetchrow(_UPDATE_END_CTE, "course completed", inv_id)
+        row = await rls_conn.fetchrow(_UPDATE_END_CTE, inv_id, None, "course completed")
         assert row["end_reason"] == "course completed"
 
     async def test_no_active_entry_returns_none(self, rls_conn):
         inv_id = await _insert_inventory(rls_conn, name="Vitamin D3")
 
-        row = await rls_conn.fetchrow(_UPDATE_END_CTE, None, inv_id)
+        row = await rls_conn.fetchrow(_UPDATE_END_CTE, inv_id, None, None)
         assert row is None
 
     async def test_already_ended_returns_none(self, rls_conn):
@@ -872,7 +883,7 @@ class TestUpdateSupplementEnd:
             ended_at=date(2026, 3, 1), end_reason="stopped",
         )
 
-        row = await rls_conn.fetchrow(_UPDATE_END_CTE, None, inv_id)
+        row = await rls_conn.fetchrow(_UPDATE_END_CTE, inv_id, None, None)
         assert row is None
 
 

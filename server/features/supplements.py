@@ -646,13 +646,16 @@ async def update_supplement_replace(
     title="Stop Taking Supplement",
     annotations=WRITE,
     description=(
-        "Stop taking a supplement — sets ended_at to today. "
+        "Stop taking a supplement - sets ended_at to the provided date, or today if omitted. "
         "Use when permanently discontinuing without a replacement. "
         "To switch to a different dose or timing, use update_supplement_replace instead."
     ),
 )
 async def update_supplement_end(
     inventory_id: int = Field(description="inventory item ID"),
+    ended_at: date | None = Field(
+        default=None, description="end date for the current entry, defaults to today"
+    ),
     end_reason: str | None = Field(
         default=None,
         description="reason for stopping, e.g. 'course completed', 'side effects'",
@@ -663,10 +666,10 @@ async def update_supplement_end(
         WITH updated AS (
           UPDATE supplements.journal
           SET
-            ended_at = CURRENT_DATE,
-            end_reason = $1
+            ended_at = COALESCE($2, CURRENT_DATE),
+            end_reason = $3
           WHERE
-            inventory_id = $2
+            inventory_id = $1
             AND ended_at IS NULL
           RETURNING *
         )
@@ -676,8 +679,9 @@ async def update_supplement_end(
           updated ins
           JOIN supplements.inventory i ON i.id = ins.inventory_id
         """,
-        end_reason,
         inventory_id,
+        ended_at,
+        end_reason,
     )
     if row is None:
         raise ToolError("no active supplement found for this inventory_id")

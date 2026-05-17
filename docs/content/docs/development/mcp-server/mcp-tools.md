@@ -42,7 +42,7 @@ The SCD Type 2 history of what the user is taking. Every regimen change closes o
 | `get_supplement_history` | read | Full chronological history for a supplement - every entry, oldest first |
 | `add_supplement` | write | Start taking a supplement. Requires `replaces_id` + `replacement_reason` if the user has prior history for this item |
 | `update_supplement_replace` | write | Change dosage / frequency / time blocks. Closes the current entry (optional `ended_at`, defaults to today) and opens a new one (optional `started_at`, defaults to today) via SCD Type 2 |
-| `update_supplement_end` | write | Stop taking a supplement without a replacement - sets `ended_at` to today |
+| `update_supplement_end` | write | Stop taking a supplement without a replacement. Accepts optional `ended_at`; defaults to today |
 
 ## Supplement context
 
