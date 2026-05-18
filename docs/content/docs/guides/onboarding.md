@@ -19,6 +19,8 @@ This guide assumes Claude.ai as the MCP client, but the steps apply to any clien
 3. Modify the first lines to match your `<connector-name>` so Claude can correctly identify the connector
 4. Open a new chat in the project and test it
 
+For ChatGPT Projects, use the shorter [ChatGPT project prompt](https://github.com/alexzaitsev/protocol/blob/main/prompts/project_prompt_short.md). It is versioned with the full project prompt but kept under the ChatGPT Project instruction size limit.
+
 ## Initial onboarding
 
 Paste the [onboarding prompt](https://github.com/alexzaitsev/protocol/blob/main/prompts/onboarding_prompt.md) into Claude to set up your health profile and preferences. Claude will ask you questions conversationally and save the answers using the Protocol tools.
